@@ -51,3 +51,14 @@ resource "azurerm_eventhub" "telemetry" {
   partition_count   = var.telemetry_partition_count
   message_retention = var.telemetry_retention_days
 }
+
+resource "azurerm_eventhub_authorization_rule" "telemetry_producer" {
+  name                = "telemetry-producer"
+  eventhub_name       = azurerm_eventhub.telemetry.name
+  namespace_name      = azurerm_eventhub_namespace.telemetry.name
+  resource_group_name = azurerm_resource_group.main.name
+
+  listen = false
+  send   = true
+  manage = false
+}
