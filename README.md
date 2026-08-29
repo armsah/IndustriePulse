@@ -202,24 +202,23 @@ The repository will evolve approximately toward:
 
 ```text
 IndustriePulse/
-Gö£GöÇGöÇ contracts/
-Gö£GöÇGöÇ docs/
-Göé   Gö£GöÇGöÇ adr/
-Göé   Göé   GööGöÇGöÇ README.md
-Göé   Gö£GöÇGöÇ benchmarks/
-Göé   Gö£GöÇGöÇ demo/
-Göé   GööGöÇGöÇ nfr.md
-Gö£GöÇGöÇ infra/
-Göé   GööGöÇGöÇ terraform/
-Gö£GöÇGöÇ simulator/
-Göé   GööGöÇGöÇ python/
-Gö£GöÇGöÇ src/
-Gö£GöÇGöÇ tests/
-Gö£GöÇGöÇ tools/
-Gö£GöÇGöÇ .gitignore
-Gö£GöÇGöÇ LICENSE
-GööGöÇGöÇ README.md
-```
+|-- contracts/
+|-- docs/
+|   |-- adr/
+|   |   `-- README.md
+|   |-- benchmarks/
+|   |-- demo/
+|   `-- nfr.md
+|-- infra/
+|   `-- terraform/
+|-- simulator/
+|   `-- python/
+|-- src/
+|-- tests/
+|-- tools/
+|-- .gitignore
+|-- LICENSE
+`-- README.md
 
 Directories are added only when their corresponding implementation phase begins.
 
