@@ -435,3 +435,6 @@ FodyWeavers.xsd
 
 # Simulator output
 simulator/python/output/
+
+# Local simulator benchmark results
+simulator/python/benchmark-result*.json
