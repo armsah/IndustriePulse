@@ -249,8 +249,8 @@ Directories are added only when their corresponding implementation phase begins.
 
 IndustriePulse distinguishes between:
 
-1. **Executed benchmarks** GÃ‡Ã¶ workloads actually run and measured.
-2. **Production sizing exercises** GÃ‡Ã¶ calculated capacity estimates based on documented assumptions.
+1. **Executed benchmarks** - workloads actually run and measured.
+2. **Production sizing exercises** - calculated capacity estimates based on documented assumptions.
 
 Calculated production-scale results will not be presented as experimentally validated results.
 
