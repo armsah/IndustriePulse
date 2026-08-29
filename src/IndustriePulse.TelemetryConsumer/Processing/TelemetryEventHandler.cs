@@ -1,8 +1,12 @@
+using System.Globalization;
 using System.Text.Json;
+using IndustriePulse.MachineState.Models;
+using IndustriePulse.MachineState.Repositories;
 
 namespace IndustriePulse.TelemetryConsumer.Processing;
 
-public sealed class TelemetryEventHandler
+public sealed class TelemetryEventHandler(
+    IMachineStateRepository machineStateRepository)
 {
     public async Task ProcessAsync(
         ReadOnlyMemory<byte> body,
@@ -12,23 +16,52 @@ public sealed class TelemetryEventHandler
         ArgumentNullException.ThrowIfNull(checkpointAsync);
 
         using JsonDocument document = JsonDocument.Parse(body);
-
         JsonElement root = document.RootElement;
 
-        string eventId = RequireString(root, "eventId");
+        _ = RequireString(root, "eventId");
+
         string siteId = RequireString(root, "siteId");
         string machineId = RequireString(root, "machineId");
+        string machineType = RequireString(root, "machineType");
+        DateTimeOffset timestampUtc = RequireTimestamp(root, "timestampUtc");
+        double temperatureC = RequireDouble(root, "temperatureC");
+        double vibrationMmS = RequireDouble(root, "vibrationMmS");
+        double pressureBar = RequireDouble(root, "pressureBar");
+        int rpm = RequireInt32(root, "rpm");
+        long sequence = RequireInt64(root, "sequence");
+        string firmwareVersion = RequireString(root, "firmwareVersion");
 
-        _ = eventId;
-        _ = siteId;
-        _ = machineId;
+        var state = new MachineCurrentState
+        {
+            Id = machineId,
+            MachineId = machineId,
+            SiteId = siteId,
+            MachineType = machineType,
+            TimestampUtc = timestampUtc,
+            TemperatureC = temperatureC,
+            VibrationMmS = vibrationMmS,
+            PressureBar = pressureBar,
+            Rpm = rpm,
+            Sequence = sequence,
+            FirmwareVersion = firmwareVersion
+        };
 
-        // P3 processing boundary:
-        // future state/rule handling will happen before this checkpoint.
+        // P4 processing boundary:
+        // durable current state must succeed before the Event Hubs
+        // checkpoint can advance.
+        //
+        // A false return means the event was stale or duplicate.
+        // That is still successful processing and may be checkpointed.
+        await machineStateRepository.TryAdvanceAsync(
+            state,
+            cancellationToken);
+
         await checkpointAsync(cancellationToken);
     }
 
-    private static string RequireString(JsonElement root, string propertyName)
+    private static string RequireString(
+        JsonElement root,
+        string propertyName)
     {
         if (!root.TryGetProperty(propertyName, out JsonElement property) ||
             property.ValueKind != JsonValueKind.String ||
@@ -39,5 +72,70 @@ public sealed class TelemetryEventHandler
         }
 
         return property.GetString()!;
+    }
+
+    private static double RequireDouble(
+        JsonElement root,
+        string propertyName)
+    {
+        if (!root.TryGetProperty(propertyName, out JsonElement property) ||
+            property.ValueKind != JsonValueKind.Number ||
+            !property.TryGetDouble(out double value))
+        {
+            throw new InvalidDataException(
+                $"Telemetry event requires numeric '{propertyName}'.");
+        }
+
+        return value;
+    }
+
+    private static int RequireInt32(
+        JsonElement root,
+        string propertyName)
+    {
+        if (!root.TryGetProperty(propertyName, out JsonElement property) ||
+            property.ValueKind != JsonValueKind.Number ||
+            !property.TryGetInt32(out int value))
+        {
+            throw new InvalidDataException(
+                $"Telemetry event requires integer '{propertyName}'.");
+        }
+
+        return value;
+    }
+
+    private static long RequireInt64(
+        JsonElement root,
+        string propertyName)
+    {
+        if (!root.TryGetProperty(propertyName, out JsonElement property) ||
+            property.ValueKind != JsonValueKind.Number ||
+            !property.TryGetInt64(out long value))
+        {
+            throw new InvalidDataException(
+                $"Telemetry event requires integer '{propertyName}'.");
+        }
+
+        return value;
+    }
+
+    private static DateTimeOffset RequireTimestamp(
+        JsonElement root,
+        string propertyName)
+    {
+        string raw = RequireString(root, propertyName);
+
+        if (!DateTimeOffset.TryParse(
+                raw,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal |
+                DateTimeStyles.AdjustToUniversal,
+                out DateTimeOffset value))
+        {
+            throw new InvalidDataException(
+                $"Telemetry event requires valid UTC timestamp '{propertyName}'.");
+        }
+
+        return value;
     }
 }
