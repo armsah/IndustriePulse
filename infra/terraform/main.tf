@@ -10,14 +10,15 @@ locals {
     8
   )
 
-  resource_group_name = "rg-${local.project}-${var.environment}-weu"
-  namespace_name      = "ehns-${local.project}-${var.environment}-${local.subscription_suffix}"
+  resource_group_name     = "rg-${local.project}-${var.environment}-weu"
+  namespace_name          = "ehns-${local.project}-${var.environment}-${local.subscription_suffix}"
+  checkpoint_storage_name = "stip${var.environment}${local.subscription_suffix}"
 
   common_tags = {
     project     = "IndustriePulse"
     environment = var.environment
     managed_by  = "Terraform"
-    phase       = "P2"
+    phase       = "platform"
   }
 }
 
@@ -41,6 +42,31 @@ module "event_hubs" {
   retention_days  = var.telemetry_retention_days
 
   tags = local.common_tags
+}
+
+resource "azurerm_storage_account" "checkpoints" {
+  name                     = local.checkpoint_storage_name
+  resource_group_name      = azurerm_resource_group.main.name
+  location                 = azurerm_resource_group.main.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+
+  access_tier                     = "Hot"
+  https_traffic_only_enabled      = true
+  min_tls_version                 = "TLS1_2"
+  allow_nested_items_to_be_public = false
+  public_network_access_enabled   = true
+
+  tags = merge(local.common_tags, {
+    phase = "P3"
+    role  = "eventhub-checkpoints"
+  })
+}
+
+resource "azurerm_storage_container" "checkpoints" {
+  name                  = "eventhub-checkpoints"
+  storage_account_id    = azurerm_storage_account.checkpoints.id
+  container_access_type = "private"
 }
 
 moved {

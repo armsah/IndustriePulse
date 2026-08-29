@@ -37,3 +37,8 @@ output "consumer_group_name" {
   description = "Consumer group used by the telemetry processor."
   value       = azurerm_eventhub_consumer_group.telemetry_processor.name
 }
+
+output "consumer_authorization_rule_name" {
+  description = "Listen-only authorization rule used by the telemetry consumer."
+  value       = azurerm_eventhub_authorization_rule.consumer.name
+}

@@ -32,6 +32,17 @@ resource "azurerm_eventhub_authorization_rule" "producer" {
   manage = false
 }
 
+resource "azurerm_eventhub_authorization_rule" "consumer" {
+  name                = "telemetry-consumer"
+  namespace_name      = azurerm_eventhub_namespace.this.name
+  eventhub_name       = azurerm_eventhub.telemetry.name
+  resource_group_name = var.resource_group_name
+
+  listen = true
+  send   = false
+  manage = false
+}
+
 resource "azurerm_eventhub_consumer_group" "telemetry_processor" {
   name                = "telemetry-processor"
   namespace_name      = azurerm_eventhub_namespace.this.name
