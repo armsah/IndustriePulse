@@ -1,6 +1,7 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Sequence
@@ -9,7 +10,11 @@ from industriepulse_simulator.config import SimulatorConfig
 from industriepulse_simulator.generator import TelemetryGenerator
 from industriepulse_simulator.inventory import create_machine_inventory
 from industriepulse_simulator.runner import SimulatorRunner
-from industriepulse_simulator.sinks import JsonlFileSink, StdoutSink
+from industriepulse_simulator.sinks import (
+    AzureEventHubSink,
+    JsonlFileSink,
+    StdoutSink,
+)
 
 
 def positive_int(value: str) -> int:
@@ -101,6 +106,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--event-hub-name",
+        type=str,
+        help=(
+            "send telemetry to Azure Event Hubs; "
+            "the connection string is read from "
+            "INDUSTRIEPULSE_EVENTHUB_CONNECTION_STRING"
+        ),
+    )
+
+    parser.add_argument(
         "--start-time",
         type=str,
         default="2026-01-01T00:00:00+00:00",
@@ -161,10 +176,34 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     generator = TelemetryGenerator(config)
 
-    if args.output is None:
-        sink = StdoutSink()
-    else:
+    if (
+            args.output is not None
+            and args.event_hub_name is not None
+        ):
+            parser.error(
+               "--output and --event-hub-name "
+               "cannot be used together"
+            )
+
+    if args.event_hub_name is not None:
+        connection_string = os.environ.get(
+            "INDUSTRIEPULSE_EVENTHUB_CONNECTION_STRING"
+        )
+
+        if not connection_string:
+            parser.error(
+                "INDUSTRIEPULSE_EVENTHUB_CONNECTION_STRING "
+                "must be set when using --event-hub-name"
+            )
+
+        sink = AzureEventHubSink(
+            connection_string=connection_string,
+            eventhub_name=args.event_hub_name,
+        )
+    elif args.output is not None:
         sink = JsonlFileSink(args.output)
+    else:
+        sink = StdoutSink()
 
     runner = SimulatorRunner(
         machines=machines,
@@ -178,7 +217,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         start_time_utc=start_time,
     )
 
-    if args.output is not None:
+    if (
+        args.output is not None
+        or args.event_hub_name is not None
+    ):
         print(
             f"Logical events: {stats.logical_events:,} | "
             f"Emitted records: {stats.emitted_records:,} | "
