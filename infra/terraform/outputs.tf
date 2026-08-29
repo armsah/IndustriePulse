@@ -42,3 +42,18 @@ output "telemetry_consumer_authorization_rule_name" {
   description = "Listen-only Event Hubs authorization rule for the P3 consumer."
   value       = module.event_hubs.consumer_authorization_rule_name
 }
+
+output "cosmos_account_name" {
+  description = "Cosmos DB account used for the P4 machine current-state projection."
+  value       = azurerm_cosmosdb_account.machine_state.name
+}
+
+output "cosmos_database_name" {
+  description = "Cosmos DB SQL database containing IndustriePulse machine state."
+  value       = azurerm_cosmosdb_sql_database.machine_state.name
+}
+
+output "cosmos_machine_state_container_name" {
+  description = "Cosmos DB container storing current state by machineId."
+  value       = azurerm_cosmosdb_sql_container.machine_state.name
+}

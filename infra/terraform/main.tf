@@ -83,3 +83,53 @@ moved {
   from = azurerm_eventhub_authorization_rule.telemetry_producer
   to   = module.event_hubs.azurerm_eventhub_authorization_rule.producer
 }
+
+locals {
+  cosmos_account_name = "cosmos-${local.project}-${var.environment}-${local.subscription_suffix}"
+}
+
+resource "azurerm_cosmosdb_account" "machine_state" {
+  name                = local.cosmos_account_name
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+
+  offer_type = "Standard"
+  kind       = "GlobalDocumentDB"
+
+  public_network_access_enabled = true
+
+  capabilities {
+    name = "EnableServerless"
+  }
+
+  consistency_policy {
+    consistency_level = "Session"
+  }
+
+  geo_location {
+    location          = azurerm_resource_group.main.location
+    failover_priority = 0
+    zone_redundant    = false
+  }
+
+  tags = merge(local.common_tags, {
+    phase = "P4"
+    role  = "machine-current-state"
+  })
+}
+
+resource "azurerm_cosmosdb_sql_database" "machine_state" {
+  name                = "industriepulse"
+  resource_group_name = azurerm_resource_group.main.name
+  account_name        = azurerm_cosmosdb_account.machine_state.name
+}
+
+resource "azurerm_cosmosdb_sql_container" "machine_state" {
+  name                = "machine-state"
+  resource_group_name = azurerm_resource_group.main.name
+  account_name        = azurerm_cosmosdb_account.machine_state.name
+  database_name       = azurerm_cosmosdb_sql_database.machine_state.name
+
+  partition_key_paths   = ["/machineId"]
+  partition_key_version = 2
+}
