@@ -1,8 +1,11 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/IndustriePulse.Api/IndustriePulse.Api.csproj" />
+    <Project Path="src/IndustriePulse.MachineState/IndustriePulse.MachineState.csproj" />
     <Project Path="src/IndustriePulse.TelemetryConsumer/IndustriePulse.TelemetryConsumer.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/IndustriePulse.Api.Tests/IndustriePulse.Api.Tests.csproj" />
     <Project Path="tests/IndustriePulse.TelemetryConsumer.Tests/IndustriePulse.TelemetryConsumer.Tests.csproj" />
   </Folder>
 </Solution>
