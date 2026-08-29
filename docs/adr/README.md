@@ -83,7 +83,7 @@ The following ADRs are expected as the project evolves.
 | ADR     | Decision                                                 | Expected phase | Status   |
 | ------- | -------------------------------------------------------- | -------------- | -------- |
 | ADR-001 | Messaging roles: Event Hubs vs Service Bus vs Event Grid | P2/P5          | Accepted |
-| ADR-002 | Event Hubs partition-key strategy                        | P2             | Planned  |
+| ADR-002 | Event Hubs partition-key strategy                        | P2             | Accepted  |
 | ADR-003 | Event Hubs partition count and capacity strategy         | P2             | Planned  |
 | ADR-004 | Consumer hosting model                                   | P3             | Planned  |
 | ADR-005 | Checkpointing strategy                                   | P3             | Planned  |
@@ -106,6 +106,8 @@ ADR-001 has been accepted and establishes the messaging responsibilities for Ind
 * **Azure Service Bus** is reserved for reliable maintenance commands and workflow messages requiring queue, retry, DLQ, and re-drive semantics.
 * **Azure Event Grid** remains optional and outside the core telemetry and maintenance-command paths.
 
+ADR-002 has been accepted and selects **`machineId` as the Event Hubs partition key**. This preserves machine-scoped ordering and provides substantially higher partition-key cardinality than `siteId`. The decision is supported by deterministic distribution analysis over the 5,000-machine reference inventory.
+
 P0 establishes workload assumptions and non-functional requirements in [`../nfr.md`](../nfr.md).
 
-P2 continues with the Event Hubs partition-key and capacity decisions in ADR-002 and ADR-003 before the corresponding Azure infrastructure is provisioned.
+P2 continues with the Event Hubs partition-key and capacity decision in ADR-003 before the corresponding Azure infrastructure is provisioned.
