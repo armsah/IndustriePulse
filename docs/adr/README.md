@@ -84,7 +84,7 @@ The following ADRs are expected as the project evolves.
 | ------- | -------------------------------------------------------- | -------------- | -------- |
 | ADR-001 | Messaging roles: Event Hubs vs Service Bus vs Event Grid | P2/P5          | Accepted |
 | ADR-002 | Event Hubs partition-key strategy                        | P2             | Accepted  |
-| ADR-003 | Event Hubs partition count and capacity strategy         | P2             | Planned  |
+| ADR-003 | Event Hubs partition count and capacity strategy         | P2             | Accepted  |
 | ADR-004 | Consumer hosting model                                   | P3             | Planned  |
 | ADR-005 | Checkpointing strategy                                   | P3             | Planned  |
 | ADR-006 | Machine current-state store: PostgreSQL vs Cosmos DB     | P4             | Planned  |
@@ -110,4 +110,6 @@ ADR-002 has been accepted and selects **`machineId` as the Event Hubs partition 
 
 P0 establishes workload assumptions and non-functional requirements in [`../nfr.md`](../nfr.md).
 
-P2 continues with the Event Hubs partition-key and capacity decision in ADR-003 before the corresponding Azure infrastructure is provisioned.
+ADR-003 has been accepted and selects **8 telemetry partitions**, **1-day Event Hubs retention**, and **1 Standard throughput unit for normal development**. Higher capacities are deliberately temporary: 2 TUs for the 1,000-events-per-second Azure reference validation, 3 TUs for a 2,000-events-per-second application benchmark, and 5 TUs as the current 4,000-events-per-second reference-production planning value.
+
+With the three P2 messaging ADRs accepted, P2 can proceed to the corresponding Terraform infrastructure.
