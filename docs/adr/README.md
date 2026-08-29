@@ -113,3 +113,11 @@ P0 establishes workload assumptions and non-functional requirements in [`../nfr.
 ADR-003 has been accepted and selects **8 telemetry partitions**, **1-day Event Hubs retention**, and **1 Standard throughput unit for normal development**. Higher capacities are deliberately temporary: 2 TUs for the 1,000-events-per-second Azure reference validation, 3 TUs for a 2,000-events-per-second application benchmark, and 5 TUs as the current 4,000-events-per-second reference-production planning value.
 
 With the three P2 messaging ADRs accepted, P2 can proceed to the corresponding Terraform infrastructure.
+
+ADR-004 has been accepted and selects a **.NET Worker Service** for the telemetry consumer. The worker uses Azure Event Hubs `EventProcessorClient` for partition ownership, processing, and checkpoint coordination.
+
+ADR-005 has been accepted and defines **processing-before-checkpoint semantics**. Successful processing is checkpointed, while a processing failure blocks further checkpoint advancement for that partition during the process lifetime so later events cannot move the durable checkpoint past failed work.
+
+ADR-006 has been accepted and selects **Azure Cosmos DB for NoSQL** for the current machine-state projection. Each machine is represented by one document using `machineId` as both the document identity and `/machineId` partition key. State advances only when an event has a newer `sequence`, preventing duplicate, late, or out-of-order telemetry from regressing current state.
+
+P4 implements this decision through a repository abstraction, Cosmos-backed projection from the telemetry consumer, and an ASP.NET Core current-state API.

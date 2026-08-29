@@ -8,7 +8,7 @@ The project is designed to demonstrate streaming, partitioning, consumer scaling
 
 ## Project Status
 
-**Current phase: P3 - C# telemetry consumer and checkpointing**
+**Current phase: P4 - Machine state store and APIs complete**
 
 | Phase | Description                                     | Status      |
 | ----- | ----------------------------------------------- | ----------- |
@@ -16,7 +16,7 @@ The project is designed to demonstrate streaming, partitioning, consumer scaling
 | P1    | Python telemetry simulator                      | Complete    |
 | P2    | Azure Event Hubs infrastructure                 | Complete    |
 | P3    | C# telemetry consumer and checkpointing         | Complete    |
-| P4    | Machine state store and APIs                    | Not started |
+| P4    | Machine state store and APIs                    | Complete    |
 | P5    | Rule engine and maintenance alerts              | Not started |
 | P6    | DLQ and re-drive tooling                        | Not started |
 | P7    | Cold storage and replay pipeline                | Not started |
@@ -122,6 +122,29 @@ A failed event prevents further checkpoint advancement for its partition during 
 The short-lived Azure resources used for validation were destroyed after testing.
 
 Detailed evidence is documented in [`docs/evidence/p3-consumer-checkpointing.md`](docs/evidence/p3-consumer-checkpointing.md).
+## P4 - Machine State Store and API
+
+P4 adds a sequence-aware current-state projection backed by Azure Cosmos DB for NoSQL and exposes it through an ASP.NET Core API.
+
+P4 adds:
+
+* Cosmos DB serverless infrastructure managed by Terraform
+* `machineId` document identity and `/machineId` partitioning
+* Repository abstraction with Cosmos and in-memory implementations
+* Sequence-aware state advancement so stale or duplicate telemetry cannot regress current state
+* Event Hubs consumer integration that persists state before checkpointing
+* `GET /api/machines/{machineId}` current-state API
+* Automated repository, consumer, API, and Terraform tests
+* Short-lived end-to-end Azure validation
+
+The full .NET test suite passes **15 of 15 tests**, and Terraform tests pass **2 of 2 runs**.
+
+Live Azure validation demonstrated the complete path from the deterministic Python simulator through Event Hubs and the .NET consumer into Cosmos DB. A current-state API request returned sequence 2 for `CNC-00001`, confirming that the later machine state was projected and queryable.
+
+The short-lived Azure resources used for validation were destroyed after testing.
+
+Detailed evidence is documented in [`docs/evidence/p4-machine-state-api.md`](docs/evidence/p4-machine-state-api.md).
+
 ## Planned Architecture
 
 ```text
@@ -226,8 +249,8 @@ Directories are added only when their corresponding implementation phase begins.
 
 IndustriePulse distinguishes between:
 
-1. **Executed benchmarks** GÇö workloads actually run and measured.
-2. **Production sizing exercises** GÇö calculated capacity estimates based on documented assumptions.
+1. **Executed benchmarks** GÃ‡Ã¶ workloads actually run and measured.
+2. **Production sizing exercises** GÃ‡Ã¶ calculated capacity estimates based on documented assumptions.
 
 Calculated production-scale results will not be presented as experimentally validated results.
 
@@ -241,4 +264,3 @@ Additional architecture, benchmark, replay, security, and demo documentation wil
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
-
