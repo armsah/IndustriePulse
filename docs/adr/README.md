@@ -19,7 +19,7 @@ Each ADR uses one of the following statuses:
 
 Each ADR should contain:
 
-```markdown id="7q0ltp"
+```markdown
 # ADR-NNN: Decision title
 
 ## Status
@@ -80,28 +80,32 @@ IndustriePulse ADRs should follow these principles:
 
 The following ADRs are expected as the project evolves.
 
-| ADR     | Decision                                                 | Expected phase | Status  |
-| ------- | -------------------------------------------------------- | -------------- | ------- |
-| ADR-001 | Messaging roles: Event Hubs vs Service Bus vs Event Grid | P2/P5          | Planned |
-| ADR-002 | Event Hubs partition-key strategy                        | P2             | Planned |
-| ADR-003 | Event Hubs partition count and capacity strategy         | P2             | Planned |
-| ADR-004 | Consumer hosting model                                   | P3             | Planned |
-| ADR-005 | Checkpointing strategy                                   | P3             | Planned |
-| ADR-006 | Machine current-state store: PostgreSQL vs Cosmos DB     | P4             | Planned |
-| ADR-007 | Idempotency and duplicate-processing strategy            | P4/P5          | Planned |
-| ADR-008 | Hot telemetry store                                      | P4/P7          | Planned |
-| ADR-009 | Maintenance command retry and DLQ policy                 | P5/P6          | Planned |
-| ADR-010 | Replay isolation strategy                                | P7             | Planned |
-| ADR-011 | Container Apps deployment topology                       | P8             | Planned |
-| ADR-012 | Observability and processing-lag measurement             | P9             | Planned |
-| ADR-013 | Network and private-access architecture                  | P11            | Planned |
+| ADR     | Decision                                                 | Expected phase | Status   |
+| ------- | -------------------------------------------------------- | -------------- | -------- |
+| ADR-001 | Messaging roles: Event Hubs vs Service Bus vs Event Grid | P2/P5          | Accepted |
+| ADR-002 | Event Hubs partition-key strategy                        | P2             | Planned  |
+| ADR-003 | Event Hubs partition count and capacity strategy         | P2             | Planned  |
+| ADR-004 | Consumer hosting model                                   | P3             | Planned  |
+| ADR-005 | Checkpointing strategy                                   | P3             | Planned  |
+| ADR-006 | Machine current-state store: PostgreSQL vs Cosmos DB     | P4             | Planned  |
+| ADR-007 | Idempotency and duplicate-processing strategy            | P4/P5          | Planned  |
+| ADR-008 | Hot telemetry store                                      | P4/P7          | Planned  |
+| ADR-009 | Maintenance command retry and DLQ policy                 | P5/P6          | Planned  |
+| ADR-010 | Replay isolation strategy                                | P7             | Planned  |
+| ADR-011 | Container Apps deployment topology                       | P8             | Planned  |
+| ADR-012 | Observability and processing-lag measurement             | P9             | Planned  |
+| ADR-013 | Network and private-access architecture                  | P11            | Planned  |
 
 This list is intentionally provisional. ADR numbers should be assigned when a decision is actually started rather than creating empty ADR files in advance.
 
 ## Current State
 
-No architectural ADR has been accepted yet.
+ADR-001 has been accepted and establishes the messaging responsibilities for IndustriePulse:
+
+* **Azure Event Hubs** is the authoritative transport for high-volume machine telemetry.
+* **Azure Service Bus** is reserved for reliable maintenance commands and workflow messages requiring queue, retry, DLQ, and re-drive semantics.
+* **Azure Event Grid** remains optional and outside the core telemetry and maintenance-command paths.
 
 P0 establishes workload assumptions and non-functional requirements in [`../nfr.md`](../nfr.md).
 
-Architecture decisions will be recorded when their implementation phase provides sufficient requirements, alternatives, and evidence.
+P2 continues with the Event Hubs partition-key and capacity decisions in ADR-002 and ADR-003 before the corresponding Azure infrastructure is provisioned.
