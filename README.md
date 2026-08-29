@@ -8,23 +8,23 @@ The project is designed to demonstrate streaming, partitioning, consumer scaling
 
 ## Project Status
 
-**Current phase: P0 — Workload and non-functional requirements**
+**Current phase: P2 - Azure Event Hubs infrastructure**
 
-| Phase | Description                                     | Status        |
-| ----- | ----------------------------------------------- | ------------- |
-| P0    | Define workload and non-functional requirements | ✅ Complete    |
-| P1    | Python telemetry simulator                      | ⬜ Not started |
-| P2    | Azure Event Hubs infrastructure                 | ⬜ Not started |
-| P3    | C# telemetry consumer and checkpointing         | ⬜ Not started |
-| P4    | Machine state store and APIs                    | ⬜ Not started |
-| P5    | Rule engine and maintenance alerts              | ⬜ Not started |
-| P6    | DLQ and re-drive tooling                        | ⬜ Not started |
-| P7    | Cold storage and replay pipeline                | ⬜ Not started |
-| P8    | Container Apps API/UI deployment                | ⬜ Not started |
-| P9    | Observability and lag dashboards                | ⬜ Not started |
-| P10   | Throughput and backpressure benchmarks          | ⬜ Not started |
-| P11   | Security and private-reference design           | ⬜ Not started |
-| P12   | Portfolio demo and documentation                | ⬜ Not started |
+| Phase | Description                                     | Status      |
+| ----- | ----------------------------------------------- | ----------- |
+| P0    | Define workload and non-functional requirements | Complete    |
+| P1    | Python telemetry simulator                      | Complete    |
+| P2    | Azure Event Hubs infrastructure                 | Complete    |
+| P3    | C# telemetry consumer and checkpointing         | Not started |
+| P4    | Machine state store and APIs                    | Not started |
+| P5    | Rule engine and maintenance alerts              | Not started |
+| P6    | DLQ and re-drive tooling                        | Not started |
+| P7    | Cold storage and replay pipeline                | Not started |
+| P8    | Container Apps API/UI deployment                | Not started |
+| P9    | Observability and lag dashboards                | Not started |
+| P10   | Throughput and backpressure benchmarks          | Not started |
+| P11   | Security and private-reference design           | Not started |
+| P12   | Portfolio demo and documentation                | Not started |
 
 ## P0 Baseline
 
@@ -46,6 +46,47 @@ The initial demo workload is explicitly defined as:
 * **30 days cold telemetry retention design target**
 
 The complete workload model and non-functional requirements are documented in [`docs/nfr.md`](docs/nfr.md).
+
+## P1 - Telemetry Simulator
+
+The Python simulator provides deterministic industrial telemetry generation for CNC machines, compressors, and robots.
+
+Implemented capabilities include:
+
+* Deterministic machine inventory and telemetry generation
+* Configurable machine count and generation cycles
+* Overheat and vibration-drift fault profiles
+* Duplicate, late, missing, and malformed event injection
+* Deterministic event IDs and reproducible fault decisions
+* JSONL output for local datasets and replay
+* Azure Event Hubs output
+* Configurable Event Hubs partition key based on `machineId`
+* Local generation and serialization benchmark tooling
+
+A 1,000,000-event local benchmark with 10,000 virtual machines achieved approximately 10,977 events/second. This is a local simulator benchmark and is not presented as Azure or end-to-end throughput.
+
+## P2 - Azure Event Hubs Infrastructure
+
+Azure Event Hubs infrastructure is defined with Terraform using a reusable module under `infra/terraform/modules/event-hubs`.
+
+The P2 configuration establishes:
+
+* Azure Event Hubs Standard
+* 8 telemetry partitions
+* 1-day Event Hubs retention for the development environment
+* 1 throughput unit for normal development
+* `machineId` as the telemetry partition key
+* Dedicated `telemetry-processor` consumer group
+* Send-only producer authorization
+* Terraform module tests and a standalone usage example
+* Capture disabled until the replay/storage phase
+* Auto-inflate disabled for predictable development cost
+
+The infrastructure was successfully provisioned in Azure and the Python simulator completed a live smoke test by publishing 20 of 20 expected telemetry records to the `telemetry` Event Hub. This smoke test demonstrates connectivity and transport integration; it is not a production-throughput benchmark.
+
+The development resources were destroyed after validation to minimize ongoing Azure cost.
+
+The messaging-role, partition-key, and Event Hubs capacity decisions are documented in the Architecture Decision Records.
 
 ## Planned Architecture
 
@@ -134,7 +175,7 @@ IndustriePulse/
 │   ├── benchmarks/
 │   ├── demo/
 │   └── nfr.md
-├── infrastructure/
+├── infra/
 │   └── terraform/
 ├── simulator/
 │   └── python/
