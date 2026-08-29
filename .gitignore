@@ -432,3 +432,6 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Simulator output
+simulator/python/output/
