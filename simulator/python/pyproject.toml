@@ -7,7 +7,9 @@ name = "industriepulse-simulator"
 version = "0.1.0"
 description = "Deterministic industrial telemetry simulator for IndustriePulse"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "azure-eventhub>=5,<6"
+]
 
 [project.scripts]
 industriepulse-sim = "industriepulse_simulator.cli:main"

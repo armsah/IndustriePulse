@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from dataclasses import dataclass
@@ -114,14 +114,20 @@ class SimulatorRunner:
                     else:
                         payload = event_to_json(event)
 
-                    self._sink.write(payload)
+                    self._sink.write(
+                        payload,
+                        partition_key=machine.machine_id,
+                    )
                     emitted_records += 1
 
                     if self._generator.should_duplicate(
                         machine.machine_id,
                         sequence,
                     ):
-                        self._sink.write(payload)
+                        self._sink.write(
+                        payload,
+                        partition_key=machine.machine_id,
+                    )
                         emitted_records += 1
                         duplicate_records += 1
 

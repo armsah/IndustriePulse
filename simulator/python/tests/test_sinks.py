@@ -44,3 +44,109 @@ def test_jsonl_sink_creates_parent_directories(
     sink.close()
 
     assert output_file.exists()
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from industriepulse_simulator.sinks import AzureEventHubSink
+
+
+@patch(
+    "industriepulse_simulator.sinks."
+    "EventHubProducerClient.from_connection_string"
+)
+def test_eventhub_sink_creates_producer(
+    from_connection_string,
+) -> None:
+    producer = MagicMock()
+    from_connection_string.return_value = producer
+
+    sink = AzureEventHubSink(
+        connection_string="Endpoint=mock;",
+        eventhub_name="telemetry",
+    )
+
+    from_connection_string.assert_called_once_with(
+        conn_str="Endpoint=mock;",
+        eventhub_name="telemetry",
+    )
+
+    sink.close()
+
+
+@patch(
+    "industriepulse_simulator.sinks."
+    "EventHubProducerClient.from_connection_string"
+)
+def test_eventhub_sink_uses_machine_as_partition_key(
+    from_connection_string,
+) -> None:
+    producer = MagicMock()
+    from_connection_string.return_value = producer
+
+    sink = AzureEventHubSink(
+        connection_string="Endpoint=mock;",
+        eventhub_name="telemetry",
+    )
+
+    sink.write(
+        '{"machineId":"CNC-00001","sequence":1}',
+        partition_key="CNC-00001",
+    )
+
+    producer.send_event.assert_called_once()
+
+    args, kwargs = producer.send_event.call_args
+
+    assert b"".join(args[0].body) == (
+        b'{"machineId":"CNC-00001","sequence":1}'
+    )
+    assert kwargs["partition_key"] == "CNC-00001"
+
+    sink.close()
+
+
+@patch(
+    "industriepulse_simulator.sinks."
+    "EventHubProducerClient.from_connection_string"
+)
+def test_eventhub_sink_requires_partition_key(
+    from_connection_string,
+) -> None:
+    producer = MagicMock()
+    from_connection_string.return_value = producer
+
+    sink = AzureEventHubSink(
+        connection_string="Endpoint=mock;",
+        eventhub_name="telemetry",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="partition key",
+    ):
+        sink.write('{"sequence":1}')
+
+    producer.send_event.assert_not_called()
+
+    sink.close()
+
+
+@patch(
+    "industriepulse_simulator.sinks."
+    "EventHubProducerClient.from_connection_string"
+)
+def test_eventhub_sink_closes_producer(
+    from_connection_string,
+) -> None:
+    producer = MagicMock()
+    from_connection_string.return_value = producer
+
+    sink = AzureEventHubSink(
+        connection_string="Endpoint=mock;",
+        eventhub_name="telemetry",
+    )
+
+    sink.close()
+
+    producer.close.assert_called_once_with()

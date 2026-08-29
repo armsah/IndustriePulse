@@ -1,4 +1,4 @@
-import json
+﻿import json
 from datetime import UTC, datetime
 
 from industriepulse_simulator.config import SimulatorConfig
@@ -13,12 +13,15 @@ class RecordingSink(TelemetrySink):
         self.payloads: list[str] = []
         self.closed = False
 
-    def write(self, payload: str) -> None:
+    def write(
+        self,
+        payload: str,
+        partition_key: str | None = None,
+    ) -> None:
         self.payloads.append(payload)
 
     def close(self) -> None:
         self.closed = True
-
 
 def create_runner(
     config: SimulatorConfig,
