@@ -2,8 +2,8 @@ locals {
   project = "industriepulse"
 
   # Event Hubs namespace names must be globally unique.
-  # A stable fragment of the active subscription ID avoids requiring
-  # a random provider or committing user-specific values to the repository.
+  # A stable subscription fragment avoids committing account-specific
+  # identifiers while keeping the development namespace reproducible.
   subscription_suffix = substr(
     replace(data.azurerm_client_config.current.subscription_id, "-", ""),
     0,
@@ -12,7 +12,6 @@ locals {
 
   resource_group_name = "rg-${local.project}-${var.environment}-weu"
   namespace_name      = "ehns-${local.project}-${var.environment}-${local.subscription_suffix}"
-  telemetry_hub_name  = "telemetry"
 
   common_tags = {
     project     = "IndustriePulse"
@@ -29,36 +28,32 @@ resource "azurerm_resource_group" "main" {
   tags = local.common_tags
 }
 
-resource "azurerm_eventhub_namespace" "telemetry" {
-  name                = local.namespace_name
-  location            = azurerm_resource_group.main.location
+module "event_hubs" {
+  source = "./modules/event-hubs"
+
   resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  namespace_name      = local.namespace_name
+  eventhub_name       = "telemetry"
 
-  sku      = "Standard"
-  capacity = var.eventhub_capacity
-
-  auto_inflate_enabled          = false
-  local_authentication_enabled  = true
-  public_network_access_enabled = true
-  minimum_tls_version           = "1.2"
+  capacity        = var.eventhub_capacity
+  partition_count = var.telemetry_partition_count
+  retention_days  = var.telemetry_retention_days
 
   tags = local.common_tags
 }
 
-resource "azurerm_eventhub" "telemetry" {
-  name              = local.telemetry_hub_name
-  namespace_id      = azurerm_eventhub_namespace.telemetry.id
-  partition_count   = var.telemetry_partition_count
-  message_retention = var.telemetry_retention_days
+moved {
+  from = azurerm_eventhub_namespace.telemetry
+  to   = module.event_hubs.azurerm_eventhub_namespace.this
 }
 
-resource "azurerm_eventhub_authorization_rule" "telemetry_producer" {
-  name                = "telemetry-producer"
-  eventhub_name       = azurerm_eventhub.telemetry.name
-  namespace_name      = azurerm_eventhub_namespace.telemetry.name
-  resource_group_name = azurerm_resource_group.main.name
+moved {
+  from = azurerm_eventhub.telemetry
+  to   = module.event_hubs.azurerm_eventhub.telemetry
+}
 
-  listen = false
-  send   = true
-  manage = false
+moved {
+  from = azurerm_eventhub_authorization_rule.telemetry_producer
+  to   = module.event_hubs.azurerm_eventhub_authorization_rule.producer
 }

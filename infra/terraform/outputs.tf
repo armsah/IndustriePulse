@@ -5,20 +5,20 @@ output "resource_group_name" {
 
 output "eventhub_namespace_name" {
   description = "IndustriePulse Event Hubs namespace name."
-  value       = azurerm_eventhub_namespace.telemetry.name
+  value       = module.event_hubs.namespace_name
 }
 
 output "telemetry_eventhub_name" {
   description = "Live telemetry Event Hub name."
-  value       = azurerm_eventhub.telemetry.name
+  value       = module.event_hubs.eventhub_name
 }
 
 output "telemetry_partition_count" {
   description = "Configured telemetry Event Hub partition count."
-  value       = azurerm_eventhub.telemetry.partition_count
+  value       = module.event_hubs.partition_count
 }
 
 output "eventhub_capacity" {
   description = "Configured Standard throughput-unit capacity."
-  value       = azurerm_eventhub_namespace.telemetry.capacity
+  value       = module.event_hubs.capacity
 }
