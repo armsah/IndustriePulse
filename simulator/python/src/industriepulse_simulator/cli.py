@@ -54,6 +54,34 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--late-event-rate",
+        type=float,
+        default=0.02,
+        help="late telemetry probability (default: 0.02)",
+    )
+
+    parser.add_argument(
+        "--duplicate-rate",
+        type=float,
+        default=0.01,
+        help="duplicate telemetry probability (default: 0.01)",
+    )
+
+    parser.add_argument(
+        "--malformed-rate",
+        type=float,
+        default=0.001,
+        help="malformed telemetry probability (default: 0.001)",
+    )
+
+    parser.add_argument(
+        "--missing-event-rate",
+        type=float,
+        default=0.0,
+        help="missing telemetry probability (default: 0.0)",
+    )
+
+    parser.add_argument(
         "--interval-seconds",
         type=float,
         default=5.0,
@@ -115,12 +143,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     except ValueError as exc:
         parser.error(str(exc))
 
-    config = SimulatorConfig(
-        seed=args.seed,
-        interval_seconds=args.interval_seconds,
-    )
+    try:
+        config = SimulatorConfig(
+            seed=args.seed,
+            interval_seconds=args.interval_seconds,
+            late_event_rate=args.late_event_rate,
+            duplicate_rate=args.duplicate_rate,
+            malformed_rate=args.malformed_rate,
+            missing_event_rate=args.missing_event_rate,
+        )
+    except ValueError as exc:
+        parser.error(str(exc))
 
-    machines = create_machine_inventory(args.machines)
+    machines = create_machine_inventory(
+        args.machines
+    )
 
     generator = TelemetryGenerator(config)
 
@@ -136,17 +173,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         interval_seconds=config.interval_seconds,
     )
 
-    emitted = runner.run_cycles(
+    stats = runner.run_cycles(
         cycles=args.cycles,
         start_time_utc=start_time,
     )
 
     if args.output is not None:
         print(
-            f"Emitted {emitted:,} events from "
-            f"{args.machines:,} machines "
-            f"across {args.cycles:,} cycle(s) "
-            f"to {args.output}"
+            f"Logical events: {stats.logical_events:,} | "
+            f"Emitted records: {stats.emitted_records:,} | "
+            f"Missing: {stats.missing_events:,} | "
+            f"Duplicates: {stats.duplicate_records:,} | "
+            f"Late: {stats.late_events:,} | "
+            f"Malformed: {stats.malformed_records:,} | "
+            f"Output: {args.output}"
         )
 
     return 0

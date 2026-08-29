@@ -117,6 +117,20 @@ class TelemetryGenerator:
             < self._config.malformed_rate
         )
 
+    def should_be_missing(
+        self,
+        machine: Machine,
+        sequence: int,
+    ) -> bool:
+        return (
+            self._decision_rng(
+                machine.machine_id,
+                sequence,
+                "missing",
+            ).random()
+            < self._config.missing_event_rate
+        )
+
     def apply_late_timestamp(
         self,
         event: TelemetryEvent,
