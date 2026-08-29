@@ -56,4 +56,9 @@ run "event_hubs_module" {
     condition     = !azurerm_eventhub_authorization_rule.producer.manage
     error_message = "Producer authorization rule must not allow Manage."
   }
+
+  assert {
+    condition     = azurerm_eventhub_consumer_group.telemetry_processor.name == "telemetry-processor"
+    error_message = "Telemetry processor consumer group must be created."
+  }
 }

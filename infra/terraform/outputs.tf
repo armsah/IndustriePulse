@@ -22,3 +22,8 @@ output "eventhub_capacity" {
   description = "Configured Standard throughput-unit capacity."
   value       = module.event_hubs.capacity
 }
+
+output "telemetry_consumer_group_name" {
+  description = "Consumer group used by the telemetry processor."
+  value       = module.event_hubs.consumer_group_name
+}

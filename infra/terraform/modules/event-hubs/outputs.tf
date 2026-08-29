@@ -32,3 +32,8 @@ output "producer_authorization_rule_name" {
   description = "Name of the send-only producer authorization rule."
   value       = azurerm_eventhub_authorization_rule.producer.name
 }
+
+output "consumer_group_name" {
+  description = "Consumer group used by the telemetry processor."
+  value       = azurerm_eventhub_consumer_group.telemetry_processor.name
+}
