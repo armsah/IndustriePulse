@@ -441,3 +441,15 @@ simulator/python/benchmark-result*.json
 
 # Local partition-analysis output
 simulator/python/partition-analysis-result*.json
+
+# Terraform local working directory
+**/.terraform/*
+
+# Terraform local state and working files
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+**/.terraform/
