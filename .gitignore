@@ -353,6 +353,11 @@ paket-files/
 # Python Tools for Visual Studio (PTVS)
 **/__pycache__/
 *.pyc
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
 
 # Cake - Uncomment if you are using it
 #tools/**
