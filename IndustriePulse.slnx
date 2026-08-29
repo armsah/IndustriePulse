@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/IndustriePulse.TelemetryConsumer/IndustriePulse.TelemetryConsumer.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/IndustriePulse.TelemetryConsumer.Tests/IndustriePulse.TelemetryConsumer.Tests.csproj" />
+  </Folder>
+</Solution>
