@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://industriepulse/contracts/maintenance-command.v1.json",
+  "title": "IndustriePulse Maintenance Command v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "commandId",
+    "schemaVersion",
+    "ruleId",
+    "eventId",
+    "siteId",
+    "machineId",
+    "machineType",
+    "triggeredAtUtc",
+    "sequence",
+    "severity",
+    "action",
+    "reason"
+  ],
+  "properties": {
+    "commandId": { "type": "string", "minLength": 1 },
+    "schemaVersion": { "const": "1.0" },
+    "ruleId": { "type": "string", "minLength": 1 },
+    "eventId": { "type": "string", "minLength": 1 },
+    "siteId": { "type": "string", "minLength": 1 },
+    "machineId": { "type": "string", "minLength": 1 },
+    "machineType": { "type": "string", "minLength": 1 },
+    "triggeredAtUtc": { "type": "string", "format": "date-time" },
+    "sequence": { "type": "integer", "minimum": 0 },
+    "severity": { "enum": ["Warning", "Critical"] },
+    "action": { "enum": ["InspectCoolingSystem", "InspectMachine"] },
+    "reason": { "type": "string", "minLength": 1 }
+  }
+}
