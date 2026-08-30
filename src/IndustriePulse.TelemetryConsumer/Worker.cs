@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Azure.Messaging.EventHubs;
+using Azure.Messaging.EventHubs.Consumer;
 using Azure.Messaging.EventHubs.Processor;
 using IndustriePulse.TelemetryConsumer.Metrics;
 using IndustriePulse.TelemetryConsumer.Processing;
@@ -49,6 +50,8 @@ public sealed class Worker(
         string partitionId = args.Partition.PartitionId;
         bool checkpointed = false;
 
+        RecordLagMetrics(args, partitionId);
+
         try
         {
             await handler.ProcessAsync(
@@ -89,9 +92,55 @@ public sealed class Worker(
         finally
         {
             stopwatch.Stop();
+
             metrics.RecordDuration(
                 partitionId,
                 stopwatch.Elapsed.TotalMilliseconds);
+        }
+    }
+
+    private void RecordLagMetrics(
+        ProcessEventArgs args,
+        string partitionId)
+    {
+        try
+        {
+            LastEnqueuedEventProperties lastEnqueued =
+                args.Partition.ReadLastEnqueuedEventProperties();
+
+            long currentSequenceNumber =
+                args.Data.SequenceNumber;
+
+            long? lastSequenceNumber =
+                lastEnqueued.SequenceNumber;
+
+            if (lastSequenceNumber.HasValue)
+            {
+                long lagEvents =
+                    ConsumerLagCalculator.CalculateEventLag(
+                        currentSequenceNumber,
+                        lastSequenceNumber.Value);
+
+                metrics.RecordProcessingLag(
+                    partitionId,
+                    lagEvents);
+            }
+
+            double eventAgeMs =
+                ConsumerLagCalculator.CalculateEventAgeMs(
+                    args.Data.EnqueuedTime,
+                    DateTimeOffset.UtcNow);
+
+            metrics.RecordEventAge(
+                partitionId,
+                eventAgeMs);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Last-enqueued Event Hubs properties were unavailable for partition {PartitionId}.",
+                partitionId);
         }
     }
 

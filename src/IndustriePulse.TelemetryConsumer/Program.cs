@@ -10,8 +10,31 @@ using IndustriePulse.TelemetryConsumer.Metrics;
 using IndustriePulse.TelemetryConsumer.Processing;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Options;
+using Azure.Monitor.OpenTelemetry.Exporter;
+using OpenTelemetry.Metrics;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+
+string? applicationInsightsConnectionString =
+    builder.Configuration[
+        "ApplicationInsights:ConnectionString"];
+
+if (!string.IsNullOrWhiteSpace(
+        applicationInsightsConnectionString))
+{
+    builder.Services
+        .AddOpenTelemetry()
+        .WithMetrics(metrics =>
+        {
+            metrics
+                .AddMeter(ConsumerMetrics.MeterName)
+                .AddAzureMonitorMetricExporter(options =>
+                {
+                    options.ConnectionString =
+                        applicationInsightsConnectionString;
+                });
+        });
+}
 
 builder.Services
     .AddOptions<EventHubConsumerOptions>()
@@ -108,10 +131,17 @@ builder.Services.AddSingleton(sp =>
         options.CheckpointStorageConnectionString,
         options.CheckpointContainerName);
 
+    var processorOptions =
+        new EventProcessorClientOptions
+        {
+            TrackLastEnqueuedEventProperties = true
+        };
+
     return new EventProcessorClient(
         checkpointContainer,
         options.ConsumerGroup,
-        options.ConnectionString);
+        options.ConnectionString,
+        processorOptions);
 });
 
 builder.Services.AddHostedService<Worker>();
