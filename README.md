@@ -8,9 +8,9 @@ The project is designed to demonstrate streaming, partitioning, consumer scaling
 
 ## Project Status
 
-**Current phase: P8 - Container Apps API/UI deployment complete**
+**Current phase: P9 - Observability and processing lag complete**
 
-**Next phase: P9 - Observability and lag dashboards**
+**Next phase: P10 - Throughput and backpressure benchmarks**
 
 | Phase | Description                                     | Status      |
 | ----- | ----------------------------------------------- | ----------- |
@@ -23,7 +23,7 @@ The project is designed to demonstrate streaming, partitioning, consumer scaling
 | P6    | DLQ and re-drive tooling                        | Complete    |
 | P7    | Capture/cold storage + replay pipeline          | Complete    |
 | P8    | Container Apps API/UI deployment                | Complete    |
-| P9    | Observability and lag dashboards                | Not started |
+| P9    | Observability and lag dashboards                | Complete    |
 | P10   | Throughput and backpressure benchmarks          | Not started |
 | P11   | Security and private-reference design           | Not started |
 | P12   | Portfolio demo and documentation                | Not started |
@@ -609,4 +609,66 @@ P11 will address managed identity, `AcrPull` role-based access, improved secret 
 - [ADR-011: Container Apps API/UI](docs/adr/ADR-011-container-apps-api-ui.md)
 - [P8 Container Apps deployment evidence](docs/evidence/p8-container-apps-deployment.md)
 
-Next: **P9 - OpenTelemetry, Azure Monitor, processing metrics, consumer lag/backlog, latency, errors, and checkpoint observability.**
+## P9 - Azure Monitor Observability and Processing Lag
+
+P9 adds OpenTelemetry-based consumer observability and a Terraform-managed Azure Monitor dashboard.
+
+### Consumer metrics
+
+The telemetry consumer exports:
+
+- `consumer.events.processed`
+- `consumer.events.failed`
+- `consumer.checkpoints`
+- `consumer.processing.duration.ms`
+- `consumer.processing.lag.events`
+- `consumer.event.age.ms`
+
+Metrics use only the Event Hubs partition identifier as a dimension to keep metric cardinality bounded.
+
+Processing lag is calculated from the difference between the partition last-enqueued sequence number and the sequence number currently being processed, clamped to zero.
+
+This is a processing-position metric rather than a durable checkpoint-lag metric.
+
+### Azure Monitor
+
+Terraform provisions:
+
+- a Log Analytics workspace;
+- workspace-based Application Insights;
+- the `IndustriePulse - Consumer Observability` Azure Monitor Workbook.
+
+The workbook visualizes:
+
+- processing lag;
+- event age;
+- processing outcomes;
+- processing duration.
+
+OpenTelemetry histogram queries use the Application Insights pre-aggregated fields `valueMin`, `valueMax`, `valueSum`, and `valueCount`.
+
+### Live backlog evidence
+
+A short-lived Azure deployment was used for a controlled backlog experiment.
+
+A deterministic clean batch for 2,000 machines was published before the consumer started. Azure Monitor subsequently recorded processing lag while the consumer worked through the backlog.
+
+Observed partition aggregates included:
+
+- 252 samples with maximum lag of 253 events;
+- 237 samples with maximum lag of 236 events.
+
+Later metric windows recorded maximum lag values of 10, 8, and 1 events with minimum values reaching zero, demonstrating consumer catch-up.
+
+Azure Monitor also received event-age, processed-event, checkpoint, and processing-duration metrics.
+
+This workload is a functional observability proof rather than a production-throughput benchmark. Sustained throughput and backpressure are evaluated separately in P10.
+
+**P9 exit criterion: processing lag measurable in Azure Monitor - PASS.**
+
+### P9 documentation
+
+- [ADR-012: Azure Monitor observability and processing lag](docs/adr/ADR-012-observability-and-processing-lag.md)
+- [P9 observability and processing lag evidence](docs/evidence/p9-observability-lag.md)
+
+Next: **P10 - Throughput, backpressure, downstream slowdown, lag growth, and recovery benchmarking.**
