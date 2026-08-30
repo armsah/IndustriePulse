@@ -26,6 +26,12 @@ builder.Services.AddSingleton<IMachineStateRepository>(serviceProvider =>
 
 var app = builder.Build();
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
+app.MapGet("/health", () => Results.Ok(new { status = "healthy" }))
+    .WithName("Health");
+
 app.MapGet(
     "/api/machines/{machineId}",
     async (

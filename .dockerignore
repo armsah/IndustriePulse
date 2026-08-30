@@ -1,0 +1,11 @@
+.git
+.github
+**/bin
+**/obj
+**/.terraform
+**/.venv
+*.tfstate
+*.tfstate.*
+*.tfplan
+.pytest_cache
+__pycache__

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>IndustriePulse</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <main class="shell">
+        <header>
+            <p class="eyebrow">INDUSTRIEPULSE</p>
+            <h1>Machine State</h1>
+            <p class="subtitle">Current industrial telemetry state by machine ID</p>
+        </header>
+
+        <section class="panel">
+            <form id="machine-form">
+                <label for="machine-id">Machine ID</label>
+                <div class="query">
+                    <input
+                        id="machine-id"
+                        name="machineId"
+                        placeholder="P8-DEMO-CNC-0001"
+                        autocomplete="off"
+                        required>
+                    <button type="submit">Query state</button>
+                </div>
+            </form>
+
+            <p id="status" class="status">Enter a machine ID to query current state.</p>
+            <pre id="result" class="result" hidden></pre>
+        </section>
+
+        <footer>
+            Azure Container Apps · ASP.NET Core · Cosmos DB
+        </footer>
+    </main>
+
+    <script src="/app.js"></script>
+</body>
+</html>
