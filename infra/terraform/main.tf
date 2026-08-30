@@ -13,6 +13,7 @@ locals {
   resource_group_name       = "rg-${local.project}-${var.environment}-weu"
   namespace_name            = "ehns-${local.project}-${var.environment}-${local.subscription_suffix}"
   checkpoint_storage_name   = "stip${var.environment}${local.subscription_suffix}"
+  cold_storage_name         = "stipcold${var.environment}${local.subscription_suffix}"
   servicebus_namespace_name = "sbns-${local.project}-${var.environment}-${local.subscription_suffix}"
 
   common_tags = {
@@ -30,6 +31,30 @@ resource "azurerm_resource_group" "main" {
   tags = local.common_tags
 }
 
+resource "azurerm_storage_account" "telemetry_cold" {
+  name                     = local.cold_storage_name
+  resource_group_name      = azurerm_resource_group.main.name
+  location                 = azurerm_resource_group.main.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+
+  access_tier                     = "Cool"
+  https_traffic_only_enabled      = true
+  min_tls_version                 = "TLS1_2"
+  allow_nested_items_to_be_public = false
+  public_network_access_enabled   = true
+
+  tags = merge(local.common_tags, {
+    phase = "P7"
+    role  = "telemetry-cold-storage"
+  })
+}
+
+resource "azurerm_storage_container" "telemetry_capture" {
+  name                  = "telemetry-capture"
+  storage_account_id    = azurerm_storage_account.telemetry_cold.id
+  container_access_type = "private"
+}
 module "event_hubs" {
   source = "./modules/event-hubs"
 
@@ -42,9 +67,48 @@ module "event_hubs" {
   partition_count = var.telemetry_partition_count
   retention_days  = var.telemetry_retention_days
 
+  capture_enabled            = true
+  capture_storage_account_id = azurerm_storage_account.telemetry_cold.id
+  capture_container_name     = azurerm_storage_container.telemetry_capture.name
+
   tags = local.common_tags
 }
 
+resource "azurerm_eventhub" "telemetry_replay" {
+  name              = "telemetry-replay"
+  namespace_id      = module.event_hubs.namespace_id
+  partition_count   = var.telemetry_partition_count
+  message_retention = 1
+}
+
+resource "azurerm_eventhub_consumer_group" "replay_processor" {
+  name                = "replay-processor"
+  namespace_name      = module.event_hubs.namespace_name
+  eventhub_name       = azurerm_eventhub.telemetry_replay.name
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_eventhub_authorization_rule" "replay_sender" {
+  name                = "telemetry-replay-sender"
+  namespace_name      = module.event_hubs.namespace_name
+  eventhub_name       = azurerm_eventhub.telemetry_replay.name
+  resource_group_name = azurerm_resource_group.main.name
+
+  listen = false
+  send   = true
+  manage = false
+}
+
+resource "azurerm_eventhub_authorization_rule" "replay_receiver" {
+  name                = "telemetry-replay-receiver"
+  namespace_name      = module.event_hubs.namespace_name
+  eventhub_name       = azurerm_eventhub.telemetry_replay.name
+  resource_group_name = azurerm_resource_group.main.name
+
+  listen = true
+  send   = false
+  manage = false
+}
 resource "azurerm_storage_account" "checkpoints" {
   name                     = local.checkpoint_storage_name
   resource_group_name      = azurerm_resource_group.main.name

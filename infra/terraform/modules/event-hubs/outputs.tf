@@ -42,3 +42,7 @@ output "consumer_authorization_rule_name" {
   description = "Listen-only authorization rule used by the telemetry consumer."
   value       = azurerm_eventhub_authorization_rule.consumer.name
 }
+output "capture_enabled" {
+  description = "Whether Event Hubs Capture is enabled for telemetry."
+  value       = var.capture_enabled
+}

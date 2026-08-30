@@ -57,3 +57,21 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "capture_enabled" {
+  description = "Enable Event Hubs Capture for telemetry."
+  type        = bool
+  default     = false
+}
+
+variable "capture_storage_account_id" {
+  description = "Storage account resource ID used by Event Hubs Capture."
+  type        = string
+  default     = null
+}
+
+variable "capture_container_name" {
+  description = "Blob container used by Event Hubs Capture."
+  type        = string
+  default     = null
+}

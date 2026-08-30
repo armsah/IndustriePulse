@@ -82,3 +82,32 @@ output "maintenance_operations_authorization_rule_name" {
   description = "Send-and-listen authorization rule used by P6 maintenance operations tooling."
   value       = azurerm_servicebus_queue_authorization_rule.maintenance_operations.name
 }
+output "telemetry_capture_storage_account_name" {
+  description = "Storage account receiving captured telemetry."
+  value       = azurerm_storage_account.telemetry_cold.name
+}
+
+output "telemetry_capture_container_name" {
+  description = "Private Blob container receiving Event Hubs Capture files."
+  value       = azurerm_storage_container.telemetry_capture.name
+}
+
+output "telemetry_replay_eventhub_name" {
+  description = "Isolated Event Hub used for historical telemetry replay."
+  value       = azurerm_eventhub.telemetry_replay.name
+}
+
+output "replay_consumer_group_name" {
+  description = "Consumer group used to validate historical replay."
+  value       = azurerm_eventhub_consumer_group.replay_processor.name
+}
+
+output "replay_sender_authorization_rule_name" {
+  description = "Send-only authorization rule used by the replay job."
+  value       = azurerm_eventhub_authorization_rule.replay_sender.name
+}
+
+output "replay_receiver_authorization_rule_name" {
+  description = "Listen-only authorization rule used by replay validation."
+  value       = azurerm_eventhub_authorization_rule.replay_receiver.name
+}
