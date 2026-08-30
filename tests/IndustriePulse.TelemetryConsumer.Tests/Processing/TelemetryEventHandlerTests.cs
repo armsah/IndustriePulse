@@ -1,6 +1,9 @@
 using System.Text;
 using IndustriePulse.MachineState.Models;
 using IndustriePulse.MachineState.Repositories;
+using IndustriePulse.Maintenance.Contracts;
+using IndustriePulse.Maintenance.Messaging;
+using IndustriePulse.Maintenance.Rules;
 using IndustriePulse.TelemetryConsumer.Processing;
 
 namespace IndustriePulse.TelemetryConsumer.Tests.Processing;
@@ -11,7 +14,11 @@ public sealed class TelemetryEventHandlerTests
     public async Task ProcessAsync_ValidEvent_PersistsStateBeforeCheckpoint()
     {
         var repository = new InMemoryMachineStateRepository();
-        var handler = new TelemetryEventHandler(repository);
+        var publisher = new RecordingPublisher();
+
+        var handler = CreateHandler(
+            repository,
+            publisher);
 
         int checkpointCalls = 0;
 
@@ -30,6 +37,7 @@ public sealed class TelemetryEventHandlerTests
         Assert.NotNull(state);
         Assert.Equal(42, state.Sequence);
         Assert.Equal(72.5, state.TemperatureC);
+        Assert.Empty(publisher.Commands);
         Assert.Equal(1, checkpointCalls);
     }
 
@@ -37,7 +45,11 @@ public sealed class TelemetryEventHandlerTests
     public async Task ProcessAsync_MalformedJson_DoesNotCheckpoint()
     {
         var repository = new InMemoryMachineStateRepository();
-        var handler = new TelemetryEventHandler(repository);
+        var publisher = new RecordingPublisher();
+
+        var handler = CreateHandler(
+            repository,
+            publisher);
 
         int checkpointCalls = 0;
 
@@ -51,6 +63,7 @@ public sealed class TelemetryEventHandlerTests
                 },
                 CancellationToken.None));
 
+        Assert.Empty(publisher.Commands);
         Assert.Equal(0, checkpointCalls);
     }
 
@@ -58,7 +71,11 @@ public sealed class TelemetryEventHandlerTests
     public async Task ProcessAsync_MissingRequiredField_DoesNotCheckpoint()
     {
         var repository = new InMemoryMachineStateRepository();
-        var handler = new TelemetryEventHandler(repository);
+        var publisher = new RecordingPublisher();
+
+        var handler = CreateHandler(
+            repository,
+            publisher);
 
         int checkpointCalls = 0;
 
@@ -79,14 +96,18 @@ public sealed class TelemetryEventHandlerTests
                 },
                 CancellationToken.None));
 
+        Assert.Empty(publisher.Commands);
         Assert.Equal(0, checkpointCalls);
     }
 
     [Fact]
     public async Task ProcessAsync_StateStoreFailure_DoesNotCheckpoint()
     {
-        var handler =
-            new TelemetryEventHandler(new FailingMachineStateRepository());
+        var publisher = new RecordingPublisher();
+
+        var handler = CreateHandler(
+            new FailingMachineStateRepository(),
+            publisher);
 
         int checkpointCalls = 0;
 
@@ -100,6 +121,7 @@ public sealed class TelemetryEventHandlerTests
                 },
                 CancellationToken.None));
 
+        Assert.Empty(publisher.Commands);
         Assert.Equal(0, checkpointCalls);
     }
 
@@ -111,12 +133,18 @@ public sealed class TelemetryEventHandlerTests
         await repository.TryAdvanceAsync(
             CreateState(sequence: 50, temperatureC: 80));
 
-        var handler = new TelemetryEventHandler(repository);
+        var publisher = new RecordingPublisher();
+
+        var handler = CreateHandler(
+            repository,
+            publisher);
 
         int checkpointCalls = 0;
 
         await handler.ProcessAsync(
-            ValidPayload(sequence: 49, temperatureC: 20),
+            ValidPayload(
+                sequence: 49,
+                temperatureC: 90),
             _ =>
             {
                 checkpointCalls++;
@@ -130,6 +158,8 @@ public sealed class TelemetryEventHandlerTests
         Assert.NotNull(state);
         Assert.Equal(50, state.Sequence);
         Assert.Equal(80, state.TemperatureC);
+
+        Assert.Empty(publisher.Commands);
         Assert.Equal(1, checkpointCalls);
     }
 
@@ -137,7 +167,11 @@ public sealed class TelemetryEventHandlerTests
     public async Task ProcessAsync_CheckpointFailure_IsPropagated()
     {
         var repository = new InMemoryMachineStateRepository();
-        var handler = new TelemetryEventHandler(repository);
+        var publisher = new RecordingPublisher();
+
+        var handler = CreateHandler(
+            repository,
+            publisher);
 
         await Assert.ThrowsAsync<IOException>(
             () => handler.ProcessAsync(
@@ -147,9 +181,123 @@ public sealed class TelemetryEventHandlerTests
                 CancellationToken.None));
     }
 
+    [Fact]
+    public async Task ProcessAsync_Overheat_PublishesCommandBeforeCheckpoint()
+    {
+        var repository = new InMemoryMachineStateRepository();
+        var publisher = new RecordingPublisher();
+
+        var handler = CreateHandler(
+            repository,
+            publisher);
+
+        int checkpointCalls = 0;
+
+        await handler.ProcessAsync(
+            ValidPayload(
+                sequence: 42,
+                temperatureC: 90),
+            _ =>
+            {
+                Assert.Single(publisher.Commands);
+                checkpointCalls++;
+                return Task.CompletedTask;
+            },
+            CancellationToken.None);
+
+        MaintenanceCommand command =
+            Assert.Single(publisher.Commands);
+
+        Assert.Equal("OVERHEAT", command.RuleId);
+        Assert.Equal("evt-001", command.EventId);
+        Assert.Equal("machine-0001", command.MachineId);
+        Assert.Equal(42, command.Sequence);
+        Assert.Equal(
+            MaintenanceSeverity.Critical,
+            command.Severity);
+        Assert.Equal(
+            MaintenanceAction.InspectCoolingSystem,
+            command.Action);
+
+        Assert.Equal(1, checkpointCalls);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_HighVibration_PublishesCommand()
+    {
+        var repository = new InMemoryMachineStateRepository();
+        var publisher = new RecordingPublisher();
+
+        var handler = CreateHandler(
+            repository,
+            publisher);
+
+        int checkpointCalls = 0;
+
+        await handler.ProcessAsync(
+            ValidPayload(
+                sequence: 42,
+                temperatureC: 72.5,
+                vibrationMmS: 8.0),
+            _ =>
+            {
+                checkpointCalls++;
+                return Task.CompletedTask;
+            },
+            CancellationToken.None);
+
+        MaintenanceCommand command =
+            Assert.Single(publisher.Commands);
+
+        Assert.Equal("HIGH_VIBRATION", command.RuleId);
+        Assert.Equal(
+            MaintenanceSeverity.Warning,
+            command.Severity);
+        Assert.Equal(
+            MaintenanceAction.InspectMachine,
+            command.Action);
+
+        Assert.Equal(1, checkpointCalls);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_PublishFailure_DoesNotCheckpoint()
+    {
+        var repository = new InMemoryMachineStateRepository();
+
+        var handler = CreateHandler(
+            repository,
+            new FailingPublisher());
+
+        int checkpointCalls = 0;
+
+        await Assert.ThrowsAsync<IOException>(
+            () => handler.ProcessAsync(
+                ValidPayload(
+                    sequence: 42,
+                    temperatureC: 90),
+                _ =>
+                {
+                    checkpointCalls++;
+                    return Task.CompletedTask;
+                },
+                CancellationToken.None));
+
+        Assert.Equal(0, checkpointCalls);
+    }
+
+    private static TelemetryEventHandler CreateHandler(
+        IMachineStateRepository repository,
+        IMaintenanceCommandPublisher publisher)
+        => new(
+            repository,
+            new ThresholdMaintenanceRuleEngine(),
+            publisher);
+
     private static byte[] ValidPayload(
         long sequence = 42,
-        double temperatureC = 72.5)
+        double temperatureC = 72.5,
+        double vibrationMmS = 3.1)
     {
         string payload = $$"""
         {
@@ -159,7 +307,7 @@ public sealed class TelemetryEventHandlerTests
           "machineType": "cnc",
           "timestampUtc": "2026-08-29T12:00:00Z",
           "temperatureC": {{temperatureC}},
-          "vibrationMmS": 3.1,
+          "vibrationMmS": {{vibrationMmS}},
           "pressureBar": 6.5,
           "rpm": 1850,
           "sequence": {{sequence}},
@@ -189,6 +337,30 @@ public sealed class TelemetryEventHandlerTests
             FirmwareVersion = "1.0.0"
         };
 
+    private sealed class RecordingPublisher
+        : IMaintenanceCommandPublisher
+    {
+        public List<MaintenanceCommand> Commands { get; } = [];
+
+        public Task PublishAsync(
+            MaintenanceCommand command,
+            CancellationToken cancellationToken = default)
+        {
+            Commands.Add(command);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FailingPublisher
+        : IMaintenanceCommandPublisher
+    {
+        public Task PublishAsync(
+            MaintenanceCommand command,
+            CancellationToken cancellationToken = default) =>
+            throw new IOException(
+                "Service Bus unavailable.");
+    }
+
     private sealed class FailingMachineStateRepository
         : IMachineStateRepository
     {
@@ -200,6 +372,7 @@ public sealed class TelemetryEventHandlerTests
         public Task<bool> TryAdvanceAsync(
             MachineCurrentState candidate,
             CancellationToken cancellationToken = default) =>
-            throw new IOException("Machine state store unavailable.");
+            throw new IOException(
+                "Machine state store unavailable.");
     }
 }

@@ -15,5 +15,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\IndustriePulse.MachineState\IndustriePulse.MachineState.csproj" />
+    <ProjectReference Include="..\IndustriePulse.Maintenance\IndustriePulse.Maintenance.csproj" />
   </ItemGroup>
 </Project>

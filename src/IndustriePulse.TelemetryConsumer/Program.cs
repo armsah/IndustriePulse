@@ -1,6 +1,9 @@
 using Azure.Messaging.EventHubs;
+using Azure.Messaging.ServiceBus;
 using Azure.Storage.Blobs;
 using IndustriePulse.MachineState.Repositories;
+using IndustriePulse.Maintenance.Messaging;
+using IndustriePulse.Maintenance.Rules;
 using IndustriePulse.TelemetryConsumer;
 using IndustriePulse.TelemetryConsumer.Configuration;
 using IndustriePulse.TelemetryConsumer.Metrics;
@@ -53,6 +56,44 @@ builder.Services.AddSingleton<IMachineStateRepository>(sp =>
     return new CosmosMachineStateRepository(
         client.GetContainer(databaseName, containerName));
 });
+
+// P5 maintenance rule engine.
+builder.Services.AddSingleton<IMaintenanceRuleEngine,
+    ThresholdMaintenanceRuleEngine>();
+
+// P5 Service Bus client.
+// The runtime connection string should use a send-only authorization rule.
+builder.Services.AddSingleton(sp =>
+{
+    IConfiguration configuration =
+        sp.GetRequiredService<IConfiguration>();
+
+    string connectionString =
+        configuration["ServiceBus:ConnectionString"]
+        ?? throw new InvalidOperationException(
+            "ServiceBus:ConnectionString is required.");
+
+    return new ServiceBusClient(connectionString);
+});
+
+// One sender is reused for the lifetime of the worker.
+builder.Services.AddSingleton(sp =>
+{
+    IConfiguration configuration =
+        sp.GetRequiredService<IConfiguration>();
+
+    string queueName =
+        configuration["ServiceBus:QueueName"]
+        ?? "maintenance-commands";
+
+    ServiceBusClient client =
+        sp.GetRequiredService<ServiceBusClient>();
+
+    return client.CreateSender(queueName);
+});
+
+builder.Services.AddSingleton<IMaintenanceCommandPublisher,
+    ServiceBusMaintenanceCommandPublisher>();
 
 builder.Services.AddSingleton<TelemetryEventHandler>();
 builder.Services.AddSingleton<PartitionCheckpointGate>();

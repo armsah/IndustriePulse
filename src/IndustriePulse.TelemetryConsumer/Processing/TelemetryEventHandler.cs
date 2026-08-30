@@ -2,11 +2,15 @@ using System.Globalization;
 using System.Text.Json;
 using IndustriePulse.MachineState.Models;
 using IndustriePulse.MachineState.Repositories;
+using IndustriePulse.Maintenance.Messaging;
+using IndustriePulse.Maintenance.Rules;
 
 namespace IndustriePulse.TelemetryConsumer.Processing;
 
 public sealed class TelemetryEventHandler(
-    IMachineStateRepository machineStateRepository)
+    IMachineStateRepository machineStateRepository,
+    IMaintenanceRuleEngine maintenanceRuleEngine,
+    IMaintenanceCommandPublisher maintenanceCommandPublisher)
 {
     public async Task ProcessAsync(
         ReadOnlyMemory<byte> body,
@@ -18,8 +22,7 @@ public sealed class TelemetryEventHandler(
         using JsonDocument document = JsonDocument.Parse(body);
         JsonElement root = document.RootElement;
 
-        _ = RequireString(root, "eventId");
-
+        string eventId = RequireString(root, "eventId");
         string siteId = RequireString(root, "siteId");
         string machineId = RequireString(root, "machineId");
         string machineType = RequireString(root, "machineType");
@@ -46,15 +49,36 @@ public sealed class TelemetryEventHandler(
             FirmwareVersion = firmwareVersion
         };
 
-        // P4 processing boundary:
-        // durable current state must succeed before the Event Hubs
-        // checkpoint can advance.
-        //
-        // A false return means the event was stale or duplicate.
-        // That is still successful processing and may be checkpointed.
-        await machineStateRepository.TryAdvanceAsync(
+        // P4/P5 processing boundary:
+        // durable current state and any resulting maintenance commands
+        // must succeed before the Event Hubs checkpoint can advance.
+        bool stateAdvanced = await machineStateRepository.TryAdvanceAsync(
             state,
             cancellationToken);
+
+        // Stale or duplicate telemetry is considered successfully processed,
+        // but must not produce duplicate maintenance commands.
+        if (stateAdvanced)
+        {
+            var ruleInput = new MaintenanceRuleInput(
+                eventId,
+                siteId,
+                machineId,
+                machineType,
+                timestampUtc,
+                temperatureC,
+                vibrationMmS,
+                sequence);
+
+            var commands = maintenanceRuleEngine.Evaluate(ruleInput);
+
+            foreach (var command in commands)
+            {
+                await maintenanceCommandPublisher.PublishAsync(
+                    command,
+                    cancellationToken);
+            }
+        }
 
         await checkpointAsync(cancellationToken);
     }
