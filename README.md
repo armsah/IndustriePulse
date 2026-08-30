@@ -334,23 +334,138 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## P7 - Capture, cold storage, and historical replay
 
-P7 adds durable telemetry capture and an isolated historical replay path.
+P7 adds durable cold storage for telemetry and an isolated pipeline for reprocessing historical events.
 
-The live `telemetry` Event Hub uses Azure Event Hubs Capture to archive telemetry into a private Azure Blob Storage container using Avro. A Python replay job reads the captured records, preserves the original telemetry payload and `eventId`, and republishes using `machineId` as the partition key.
+### Architecture
 
-Historical events are replayed to a dedicated `telemetry-replay` Event Hub rather than the live telemetry hub. The separate `replay-processor` consumer group keeps replay processing isolated from the live Cosmos DB state projection and maintenance-command path.
+```text
+Live simulator
+      |
+      v
+telemetry Event Hub
+      |
+      +----> live C# consumer
+      |
+      +----> Event Hubs Capture
+                  |
+                  v
+          Azure Blob Storage
+             Avro files
+                  |
+                  v
+          Python replay job
+                  |
+                  v
+       telemetry-replay Event Hub
+                  |
+                  v
+         replay-processor group
+```
 
-Live validation used a controlled 12-event batch:
+### Cold-storage design
 
-- 8 Capture Avro blobs created
-- 12 captured records read
-- 12 records replayed
-- 0 records rejected
-- 12 unique historical event IDs verified downstream
+The live `telemetry` Event Hub uses native Azure Event Hubs Capture rather than a custom archival consumer.
 
-The temporary Azure deployment was destroyed after validation.
+The P7 development configuration uses:
 
-See:
+- Azure StorageV2 with Standard LRS replication
+- Cool access tier
+- private `telemetry-capture` Blob container
+- Avro Event Hubs Capture format
+- 60-second capture interval
+- 10 MiB capture size limit
+- empty archives disabled
+
+Blob Storage was selected instead of enabling ADLS Gen2 hierarchical namespace because P7 only requires durable cold storage and replay. The simpler Blob configuration keeps the portfolio deployment lower-cost and lower-complexity while leaving ADLS Gen2 as a future analytics option.
+
+### Replay isolation
+
+Historical telemetry is never replayed into the live `telemetry` Event Hub.
+
+Replay uses a dedicated `telemetry-replay` Event Hub and a dedicated `replay-processor` consumer group. This isolates historical processing from the live Cosmos DB current-state projection and Service Bus maintenance-command path.
+
+Replay authorization is also separated:
+
+- `telemetry-replay-sender`: Send only
+- `telemetry-replay-receiver`: Listen only
+
+### Python replay tooling
+
+The replay utility is implemented under `tools/replay/` and uses the dependencies declared in `simulator/python/pyproject.toml`.
+
+The replay job:
+
+1. enumerates Event Hubs Capture blobs;
+2. reads Capture Avro records using `fastavro`;
+3. extracts the original telemetry body;
+4. validates that `machineId` is present;
+5. republishes the original JSON payload to `telemetry-replay`;
+6. uses `machineId` as the replay partition key;
+7. annotates the broker event with replay metadata.
+
+Invalid captured records are rejected rather than republished.
+
+### Replay semantics
+
+The application-level telemetry payload is preserved, including the original `eventId`.
+
+Original Event Hubs broker metadata is not preserved. Replay creates new broker sequence numbers, offsets, enqueue timestamps, and partition metadata.
+
+Replay is therefore explicitly **at-least-once**. Re-running a historical batch can reproduce the same application event IDs, so replay consumers must remain idempotent where side effects are involved. No exactly-once guarantee is claimed.
+
+### Automated validation
+
+- Replay tests: **6 passed**
+- Simulator regression suite: **52 passed**
+- Terraform validation: **success**
+- Terraform tests: **4 passed, 0 failed**
+
+Terraform tests cover the Event Hubs module, machine-state store, maintenance messaging, and the P7 capture/replay infrastructure contract.
+
+### Live Azure proof
+
+A short-lived Azure deployment was used to prove the complete historical-processing path.
+
+A controlled batch of **12 telemetry events** was sent to the live `telemetry` Event Hub.
+
+Event Hubs Capture produced **8 Avro blobs** across the configured Event Hub partitions.
+
+The replay job then reported:
+
+```json
+{
+  "blobsScanned": 8,
+  "recordsSeen": 12,
+  "recordsReplayed": 12,
+  "recordsRejected": 0
+}
+```
+
+A separate consumer then verified the replayed batch through the `replay-processor` consumer group:
+
+```json
+{
+  "expectedCount": 12,
+  "uniqueEventIds": 12,
+  "verified": true
+}
+```
+
+The verified application event IDs were `p7-history-001` through `p7-history-012`.
+
+**P7 exit criterion: Historical batch reprocessed - PASS.**
+
+### Cost control
+
+The Azure resources used for P7 were temporary. After evidence collection:
+
+- Terraform state was empty
+- the development resource group no longer existed
+- runtime connection strings were removed from the PowerShell session
+
+The P7 live run demonstrates functional replay correctness. It is not presented as a production throughput benchmark.
+
+### P7 documentation
 
 - [ADR-010: Replay isolation](docs/adr/ADR-010-replay-isolation.md)
 - [P7 capture/replay evidence](docs/evidence/p7-capture-replay.md)
