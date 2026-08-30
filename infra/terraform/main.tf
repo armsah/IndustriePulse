@@ -72,6 +72,10 @@ module "event_hubs" {
   capture_container_name     = azurerm_storage_container.telemetry_capture.name
 
   tags = local.common_tags
+
+  depends_on = [
+    azurerm_storage_container.telemetry_capture
+  ]
 }
 
 resource "azurerm_eventhub" "telemetry_replay" {
@@ -254,4 +258,124 @@ resource "azurerm_servicebus_queue_authorization_rule" "maintenance_operations" 
   send   = true
   listen = true
   manage = false
+}
+
+locals {
+  container_registry_name = "acr${local.project}${var.environment}${local.subscription_suffix}"
+  container_app_env_name  = "cae-${local.project}-${var.environment}"
+  api_container_app_name  = "ca-${local.project}-api-${var.environment}"
+}
+
+resource "azurerm_container_registry" "api" {
+  name                = local.container_registry_name
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+
+  sku           = "Basic"
+  admin_enabled = true
+
+  public_network_access_enabled = true
+
+  tags = merge(local.common_tags, {
+    phase = "P8"
+    role  = "api-container-registry"
+  })
+}
+
+resource "azurerm_container_app_environment" "api" {
+  name                = local.container_app_env_name
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+
+  tags = merge(local.common_tags, {
+    phase = "P8"
+    role  = "api-ui-runtime"
+  })
+}
+
+resource "azurerm_container_app" "api" {
+  name                         = local.api_container_app_name
+  container_app_environment_id = azurerm_container_app_environment.api.id
+  resource_group_name          = azurerm_resource_group.main.name
+  revision_mode                = "Single"
+
+  secret {
+    name  = "registry-password"
+    value = azurerm_container_registry.api.admin_password
+  }
+
+  secret {
+    name  = "cosmos-connection-string"
+    value = azurerm_cosmosdb_account.machine_state.primary_sql_connection_string
+  }
+
+  registry {
+    server               = azurerm_container_registry.api.login_server
+    username             = azurerm_container_registry.api.admin_username
+    password_secret_name = "registry-password"
+  }
+
+  ingress {
+    external_enabled = true
+    target_port      = 8080
+
+    traffic_weight {
+      percentage      = 100
+      latest_revision = true
+    }
+  }
+
+  template {
+    min_replicas = 0
+    max_replicas = 3
+
+    container {
+      name   = "industriepulse-api"
+      image  = "${azurerm_container_registry.api.login_server}/industriepulse-api:${var.api_image_tag}"
+      cpu    = 0.25
+      memory = "0.5Gi"
+
+      env {
+        name        = "Cosmos__ConnectionString"
+        secret_name = "cosmos-connection-string"
+      }
+
+      env {
+        name  = "Cosmos__DatabaseName"
+        value = azurerm_cosmosdb_sql_database.machine_state.name
+      }
+
+      env {
+        name  = "Cosmos__ContainerName"
+        value = azurerm_cosmosdb_sql_container.machine_state.name
+      }
+
+      liveness_probe {
+        transport = "HTTP"
+        port      = 8080
+        path      = "/health"
+
+        initial_delay           = 10
+        interval_seconds        = 30
+        timeout                 = 5
+        failure_count_threshold = 3
+      }
+
+      readiness_probe {
+        transport = "HTTP"
+        port      = 8080
+        path      = "/health"
+
+        interval_seconds        = 10
+        timeout                 = 5
+        failure_count_threshold = 3
+        success_count_threshold = 1
+      }
+    }
+  }
+
+  tags = merge(local.common_tags, {
+    phase = "P8"
+    role  = "api-ui"
+  })
 }

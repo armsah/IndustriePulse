@@ -47,3 +47,14 @@ variable "telemetry_retention_days" {
     error_message = "ADR-003 fixes P2 Event Hubs retention at 1 day."
   }
 }
+
+variable "api_image_tag" {
+  description = "Container image tag deployed to the P8 IndustriePulse API/UI."
+  type        = string
+  default     = "p8"
+
+  validation {
+    condition     = length(trimspace(var.api_image_tag)) > 0
+    error_message = "api_image_tag must not be empty."
+  }
+}

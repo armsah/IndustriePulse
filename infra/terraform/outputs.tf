@@ -111,3 +111,28 @@ output "replay_receiver_authorization_rule_name" {
   description = "Listen-only authorization rule used by replay validation."
   value       = azurerm_eventhub_authorization_rule.replay_receiver.name
 }
+
+output "container_registry_name" {
+  description = "Azure Container Registry holding the P8 API/UI image."
+  value       = azurerm_container_registry.api.name
+}
+
+output "container_registry_login_server" {
+  description = "Login server for the P8 Azure Container Registry."
+  value       = azurerm_container_registry.api.login_server
+}
+
+output "container_app_environment_name" {
+  description = "Container Apps environment hosting the P8 API/UI."
+  value       = azurerm_container_app_environment.api.name
+}
+
+output "api_container_app_name" {
+  description = "P8 Container App serving the IndustriePulse API and dashboard."
+  value       = azurerm_container_app.api.name
+}
+
+output "api_container_app_fqdn" {
+  description = "Public HTTPS hostname for the P8 IndustriePulse API/UI."
+  value       = azurerm_container_app.api.ingress[0].fqdn
+}
