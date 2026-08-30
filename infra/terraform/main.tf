@@ -182,3 +182,12 @@ resource "azurerm_servicebus_queue_authorization_rule" "maintenance_receiver" {
   listen = true
   manage = false
 }
+
+resource "azurerm_servicebus_queue_authorization_rule" "maintenance_operations" {
+  name     = "maintenance-operations"
+  queue_id = azurerm_servicebus_queue.maintenance_commands.id
+
+  send   = true
+  listen = true
+  manage = false
+}

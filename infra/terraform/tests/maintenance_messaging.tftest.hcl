@@ -52,5 +52,19 @@ run "maintenance_messaging_contract" {
     condition     = azurerm_servicebus_queue_authorization_rule.maintenance_receiver.manage == false
     error_message = "Maintenance receiver must not have Manage permission."
   }
-}
 
+  assert {
+    condition     = azurerm_servicebus_queue_authorization_rule.maintenance_operations.send == true
+    error_message = "P6 maintenance operations rule must allow Send."
+  }
+
+  assert {
+    condition     = azurerm_servicebus_queue_authorization_rule.maintenance_operations.listen == true
+    error_message = "P6 maintenance operations rule must allow Listen."
+  }
+
+  assert {
+    condition     = azurerm_servicebus_queue_authorization_rule.maintenance_operations.manage == false
+    error_message = "P6 maintenance operations rule must not allow Manage."
+  }
+}

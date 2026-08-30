@@ -77,3 +77,8 @@ output "maintenance_receiver_authorization_rule_name" {
   description = "Listen-only authorization rule used for P5 maintenance command validation."
   value       = azurerm_servicebus_queue_authorization_rule.maintenance_receiver.name
 }
+
+output "maintenance_operations_authorization_rule_name" {
+  description = "Send-and-listen authorization rule used by P6 maintenance operations tooling."
+  value       = azurerm_servicebus_queue_authorization_rule.maintenance_operations.name
+}
