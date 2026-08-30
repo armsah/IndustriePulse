@@ -8,7 +8,7 @@ The project is designed to demonstrate streaming, partitioning, consumer scaling
 
 ## Project Status
 
-**Current phase: P6 - DLQ and re-drive tooling complete**
+**Current phase: P7 - Capture and historical replay complete**
 
 | Phase | Description                                     | Status      |
 | ----- | ----------------------------------------------- | ----------- |
@@ -19,7 +19,7 @@ The project is designed to demonstrate streaming, partitioning, consumer scaling
 | P4    | Machine state store and APIs                    | Complete    |
 | P5    | Rule engine and maintenance alerts              | Complete    |
 | P6    | DLQ and re-drive tooling                        | Complete    |
-| P7    | Cold storage and replay pipeline                | Not started |
+| P7 | Capture/cold storage + replay pipeline | Complete |
 | P8    | Container Apps API/UI deployment                | Not started |
 | P9    | Observability and lag dashboards                | Not started |
 | P10   | Throughput and backpressure benchmarks          | Not started |
@@ -331,3 +331,26 @@ Additional architecture, benchmark, replay, security, and demo documentation wil
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+
+## P7 - Capture, cold storage, and historical replay
+
+P7 adds durable telemetry capture and an isolated historical replay path.
+
+The live `telemetry` Event Hub uses Azure Event Hubs Capture to archive telemetry into a private Azure Blob Storage container using Avro. A Python replay job reads the captured records, preserves the original telemetry payload and `eventId`, and republishes using `machineId` as the partition key.
+
+Historical events are replayed to a dedicated `telemetry-replay` Event Hub rather than the live telemetry hub. The separate `replay-processor` consumer group keeps replay processing isolated from the live Cosmos DB state projection and maintenance-command path.
+
+Live validation used a controlled 12-event batch:
+
+- 8 Capture Avro blobs created
+- 12 captured records read
+- 12 records replayed
+- 0 records rejected
+- 12 unique historical event IDs verified downstream
+
+The temporary Azure deployment was destroyed after validation.
+
+See:
+
+- [ADR-010: Replay isolation](docs/adr/ADR-010-replay-isolation.md)
+- [P7 capture/replay evidence](docs/evidence/p7-capture-replay.md)
