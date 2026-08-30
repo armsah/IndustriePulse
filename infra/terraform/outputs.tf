@@ -136,3 +136,18 @@ output "api_container_app_fqdn" {
   description = "Public HTTPS hostname for the P8 IndustriePulse API/UI."
   value       = azurerm_container_app.api.ingress[0].fqdn
 }
+
+output "log_analytics_workspace_name" {
+  description = "P9 Log Analytics workspace name."
+  value       = azurerm_log_analytics_workspace.observability.name
+}
+
+output "application_insights_name" {
+  description = "P9 Application Insights component name."
+  value       = azurerm_application_insights.consumer.name
+}
+
+output "observability_workbook_id" {
+  description = "P9 Azure Monitor Workbook resource ID."
+  value       = azurerm_application_insights_workbook.consumer_observability.id
+}
