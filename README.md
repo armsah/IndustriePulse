@@ -8,7 +8,9 @@ The project is designed to demonstrate streaming, partitioning, consumer scaling
 
 ## Project Status
 
-**Current phase: P7 - Capture and historical replay complete**
+**Current phase: P8 - Container Apps API/UI deployment complete**
+
+**Next phase: P9 - Observability and lag dashboards**
 
 | Phase | Description                                     | Status      |
 | ----- | ----------------------------------------------- | ----------- |
@@ -19,8 +21,8 @@ The project is designed to demonstrate streaming, partitioning, consumer scaling
 | P4    | Machine state store and APIs                    | Complete    |
 | P5    | Rule engine and maintenance alerts              | Complete    |
 | P6    | DLQ and re-drive tooling                        | Complete    |
-| P7 | Capture/cold storage + replay pipeline | Complete |
-| P8    | Container Apps API/UI deployment                | Not started |
+| P7    | Capture/cold storage + replay pipeline          | Complete    |
+| P8    | Container Apps API/UI deployment                | Complete    |
 | P9    | Observability and lag dashboards                | Not started |
 | P10   | Throughput and backpressure benchmarks          | Not started |
 | P11   | Security and private-reference design           | Not started |
@@ -30,20 +32,20 @@ The project is designed to demonstrate streaming, partitioning, consumer scaling
 
 The initial demo workload is explicitly defined as:
 
-* **5 manufacturing sites**
-* **5,000 simulated machines**
-* **1 telemetry event per machine every 5 seconds**
-* **~1,000 events/second nominal ingress**
-* **2,000 events/second short-duration test peak**
-* **350 bytes average event size for capacity planning**
-* **~86.4 million telemetry events/day**
-* **~30.24 GB/day raw application payload**
-* **2% late/out-of-order events**
-* **1% duplicate events**
-* **0.1% malformed events**
-* **3-minute downstream slowdown/outage exercise**
-* **7 days hot telemetry retention target**
-* **30 days cold telemetry retention design target**
+- **5 manufacturing sites**
+- **5,000 simulated machines**
+- **1 telemetry event per machine every 5 seconds**
+- **~1,000 events/second nominal ingress**
+- **2,000 events/second short-duration test peak**
+- **350 bytes average event size for capacity planning**
+- **~86.4 million telemetry events/day**
+- **~30.24 GB/day raw application payload**
+- **2% late/out-of-order events**
+- **1% duplicate events**
+- **0.1% malformed events**
+- **3-minute downstream slowdown/outage exercise**
+- **7 days hot telemetry retention target**
+- **30 days cold telemetry retention design target**
 
 The complete workload model and non-functional requirements are documented in [`docs/nfr.md`](docs/nfr.md).
 
@@ -53,15 +55,15 @@ The Python simulator provides deterministic industrial telemetry generation for 
 
 Implemented capabilities include:
 
-* Deterministic machine inventory and telemetry generation
-* Configurable machine count and generation cycles
-* Overheat and vibration-drift fault profiles
-* Duplicate, late, missing, and malformed event injection
-* Deterministic event IDs and reproducible fault decisions
-* JSONL output for local datasets and replay
-* Azure Event Hubs output
-* Configurable Event Hubs partition key based on `machineId`
-* Local generation and serialization benchmark tooling
+- Deterministic machine inventory and telemetry generation
+- Configurable machine count and generation cycles
+- Overheat and vibration-drift fault profiles
+- Duplicate, late, missing, and malformed event injection
+- Deterministic event IDs and reproducible fault decisions
+- JSONL output for local datasets and replay
+- Azure Event Hubs output
+- Configurable Event Hubs partition key based on `machineId`
+- Local generation and serialization benchmark tooling
 
 A 1,000,000-event local benchmark with 10,000 virtual machines achieved approximately 10,977 events/second. This is a local simulator benchmark and is not presented as Azure or end-to-end throughput.
 
@@ -71,16 +73,16 @@ Azure Event Hubs infrastructure is defined with Terraform using a reusable modul
 
 The P2 configuration establishes:
 
-* Azure Event Hubs Standard
-* 8 telemetry partitions
-* 1-day Event Hubs retention for the development environment
-* 1 throughput unit for normal development
-* `machineId` as the telemetry partition key
-* Dedicated `telemetry-processor` consumer group
-* Send-only producer authorization
-* Terraform module tests and a standalone usage example
-* Capture disabled until the replay/storage phase
-* Auto-inflate disabled for predictable development cost
+- Azure Event Hubs Standard
+- 8 telemetry partitions
+- 1-day Event Hubs retention for the development environment
+- 1 throughput unit for normal development
+- `machineId` as the telemetry partition key
+- Dedicated `telemetry-processor` consumer group
+- Send-only producer authorization
+- Terraform module tests and a standalone usage example
+- Capture disabled until the replay/storage phase
+- Auto-inflate disabled for predictable development cost
 
 The infrastructure was successfully provisioned in Azure and the Python simulator completed a live smoke test by publishing 20 of 20 expected telemetry records to the `telemetry` Event Hub. This smoke test demonstrates connectivity and transport integration; it is not a production-throughput benchmark.
 
@@ -88,32 +90,31 @@ The development resources were destroyed after validation to minimize ongoing Az
 
 The messaging-role, partition-key, and Event Hubs capacity decisions are documented in the Architecture Decision Records.
 
-
 ## P3 - C# Telemetry Consumer and Checkpointing
 
 The telemetry consumer is implemented as a .NET 10 Worker Service using Azure Event Hubs `EventProcessorClient`.
 
 P3 adds:
 
-* Long-running C# Event Hubs consumption
-* Dedicated listen-only consumer authorization
-* Blob Storage for partition ownership and durable checkpoints
-* Processing-before-checkpoint semantics
-* Per-partition checkpoint blocking after a processing failure
-* Graceful worker startup and shutdown
-* Consumer metrics for processed events, failed events, checkpoints, and processing duration
-* Automated tests covering checkpoint and failure behavior
+- Long-running C# Event Hubs consumption
+- Dedicated listen-only consumer authorization
+- Blob Storage for partition ownership and durable checkpoints
+- Processing-before-checkpoint semantics
+- Per-partition checkpoint blocking after a processing failure
+- Graceful worker startup and shutdown
+- Consumer metrics for processed events, failed events, checkpoints, and processing duration
+- Automated tests covering checkpoint and failure behavior
 
 The solution builds successfully and the P3 test suite passes **7 of 7 tests**.
 
 Live Azure validation demonstrated:
 
-* Successful ingestion of a clean 20-event simulator batch
-* Creation of Event Hubs partition ownership and checkpoint blobs
-* Clean consumer shutdown and restart
-* Partition ownership reacquisition after restart
-* Successful ingestion of a second 10-event batch
-* Durable checkpoint timestamps advancing after restart
+- Successful ingestion of a clean 20-event simulator batch
+- Creation of Event Hubs partition ownership and checkpoint blobs
+- Clean consumer shutdown and restart
+- Partition ownership reacquisition after restart
+- Successful ingestion of a second 10-event batch
+- Durable checkpoint timestamps advancing after restart
 
 P3 uses correctness-first per-event checkpointing. Checkpoint batching and cadence will be evaluated during P10 throughput and backpressure testing.
 
@@ -122,20 +123,21 @@ A failed event prevents further checkpoint advancement for its partition during 
 The short-lived Azure resources used for validation were destroyed after testing.
 
 Detailed evidence is documented in [`docs/evidence/p3-consumer-checkpointing.md`](docs/evidence/p3-consumer-checkpointing.md).
+
 ## P4 - Machine State Store and API
 
 P4 adds a sequence-aware current-state projection backed by Azure Cosmos DB for NoSQL and exposes it through an ASP.NET Core API.
 
 P4 adds:
 
-* Cosmos DB serverless infrastructure managed by Terraform
-* `machineId` document identity and `/machineId` partitioning
-* Repository abstraction with Cosmos and in-memory implementations
-* Sequence-aware state advancement so stale or duplicate telemetry cannot regress current state
-* Event Hubs consumer integration that persists state before checkpointing
-* `GET /api/machines/{machineId}` current-state API
-* Automated repository, consumer, API, and Terraform tests
-* Short-lived end-to-end Azure validation
+- Cosmos DB serverless infrastructure managed by Terraform
+- `machineId` document identity and `/machineId` partitioning
+- Repository abstraction with Cosmos and in-memory implementations
+- Sequence-aware state advancement so stale or duplicate telemetry cannot regress current state
+- Event Hubs consumer integration that persists state before checkpointing
+- `GET /api/machines/{machineId}` current-state API
+- Automated repository, consumer, API, and Terraform tests
+- Short-lived end-to-end Azure validation
 
 The full .NET test suite passes **15 of 15 tests**, and Terraform tests pass **2 of 2 runs**.
 
@@ -174,13 +176,14 @@ The implementation retains at-least-once semantics. Cosmos DB state advancement 
 P5 does not claim the complete DLQ/re-drive workflow. That remains P6.
 
 Detailed evidence is documented in [`docs/evidence/p5-rule-command-flow.md`](docs/evidence/p5-rule-command-flow.md).
+
 ## P6 - Service Bus DLQ and Re-drive
 
 P6 adds operational tooling for inspecting and recovering maintenance-command poison messages from the Azure Service Bus dead-letter queue.
 
 Implemented capabilities:
 
-- `.NET` maintenance operations CLI;
+- .NET maintenance operations CLI;
 - non-destructive DLQ inspection;
 - controlled poison-message generation for reproducible validation;
 - targeted message re-drive;
@@ -212,6 +215,7 @@ The short-lived Azure resources used for P6 validation were destroyed after evid
 Detailed evidence is documented in [`docs/evidence/p6-dlq-redrive.md`](docs/evidence/p6-dlq-redrive.md).
 
 The operational procedure is documented in [`docs/runbooks/service-bus-dlq-redrive.md`](docs/runbooks/service-bus-dlq-redrive.md).
+
 ## Planned Architecture
 
 ```text
@@ -255,19 +259,19 @@ The exact implementation choices will be refined through [Architecture Decision 
 
 IndustriePulse will explicitly demonstrate:
 
-* Partition-scoped ordering
-* Partition-key trade-offs
-* Consumer scaling relative to partition count
-* Duplicate-event handling and logical idempotency
-* Late and out-of-order event handling
-* Checkpoint and recovery behavior
-* Service Bus retries and dead-letter queues
-* Poison-message re-drive
-* Downstream backpressure
-* Consumer lag and recovery
-* Historical telemetry replay
-* Schema evolution
-* Dependency-outage recovery
+- Partition-scoped ordering
+- Partition-key trade-offs
+- Consumer scaling relative to partition count
+- Duplicate-event handling and logical idempotency
+- Late and out-of-order event handling
+- Checkpoint and recovery behavior
+- Service Bus retries and dead-letter queues
+- Poison-message re-drive
+- Downstream backpressure
+- Consumer lag and recovery
+- Historical telemetry replay
+- Schema evolution
+- Dependency-outage recovery
 
 ## Technology Direction
 
@@ -309,6 +313,7 @@ IndustriePulse/
 |-- .gitignore
 |-- LICENSE
 `-- README.md
+```
 
 Directories are added only when their corresponding implementation phase begins.
 
@@ -323,8 +328,8 @@ Calculated production-scale results will not be presented as experimentally vali
 
 ## Documentation
 
-* [Non-Functional Requirements and Workload Model](docs/nfr.md)
-* [Architecture Decision Records](docs/adr/README.md)
+- [Non-Functional Requirements and Workload Model](docs/nfr.md)
+- [Architecture Decision Records](docs/adr/README.md)
 
 Additional architecture, benchmark, replay, security, and demo documentation will be added as the corresponding implementation phases are completed.
 
@@ -469,3 +474,139 @@ The P7 live run demonstrates functional replay correctness. It is not presented 
 
 - [ADR-010: Replay isolation](docs/adr/ADR-010-replay-isolation.md)
 - [P7 capture/replay evidence](docs/evidence/p7-capture-replay.md)
+
+## P8 - Azure Container Apps API/UI
+
+P8 deploys the IndustriePulse current-state API and lightweight machine dashboard to Azure Container Apps.
+
+### Application deployment
+
+The existing ASP.NET Core API is packaged as a production container using a multi-stage .NET 10 Docker build.
+
+The same application serves:
+
+- the current machine-state API;
+- a lightweight static operations dashboard;
+- the `/health` platform health endpoint.
+
+The dashboard queries:
+
+`GET /api/machines/{machineId}`
+
+and displays the current Cosmos DB-backed state for the requested machine.
+
+Keeping the API and dashboard in one container limits the deployment surface for the portfolio environment while preserving the existing HTTP API boundary.
+
+### Azure Container Apps
+
+Terraform provisions the P8 runtime using:
+
+- Azure Container Apps;
+- external HTTPS ingress;
+- target port `8080`;
+- single-revision mode;
+- Azure Container Registry Basic;
+- `0.25` vCPU per replica;
+- `0.5 GiB` memory per replica;
+- minimum replicas `0`;
+- maximum replicas `3`;
+- liveness and readiness probes using `/health`.
+
+The zero minimum allows the development application to scale to zero when idle. The maximum of three replicas bounds accidental development scale-out.
+
+Scale-to-zero applies to Container Apps compute and does not imply that the complete Azure environment is free. Dependent resources such as Azure Container Registry, Event Hubs, Service Bus, Cosmos DB, Storage, monitoring, and networking can incur charges independently.
+
+Cold-start latency after an idle scale-to-zero period is accepted for this development and portfolio workload.
+
+### Automated validation
+
+Final P8 validation completed successfully:
+
+- Terraform validation: **success**
+- Terraform tests: **5 passed, 0 failed**
+- .NET build: **success**
+- .NET tests: **26 passed, 0 failed**
+- production Docker image build: **success**
+- `git diff --check`: **no whitespace errors**
+
+The Container Apps Terraform tests verify the registry SKU, revision mode, ingress configuration, target port, replica limits, CPU, and memory configuration.
+
+### Live Azure proof
+
+A short-lived Azure deployment was used to verify the complete P8 runtime.
+
+The deployment demonstrated:
+
+- successful Azure Container Apps provisioning;
+- successful deployment of the `industriepulse-api:p8` image;
+- healthy public HTTPS ingress;
+- `/health` returning `healthy`;
+- dashboard HTTP `200`;
+- expected dashboard content served by ASP.NET Core;
+- successful Cosmos DB-backed current-state query through the deployed API.
+
+A deterministic machine-state document was inserted for deployment verification.
+
+The public API returned:
+
+```text
+machineId    : P8-DEMO-CNC-0001
+siteId       : SITE-P8
+machineType  : CNC
+temperatureC : 61.5
+vibrationMmS : 2.3
+sequence     : 1
+```
+
+This verified the deployed path:
+
+```text
+Browser / HTTPS client
+        |
+        v
+Azure Container Apps ingress
+        |
+        v
+IndustriePulse.Api
+        |
+        +----> Static operations dashboard
+        |
+        v
+Cosmos DB current machine state
+```
+
+**P8 exit criterion: Container Apps API/UI deployed and scale-to-zero development economics documented - PASS.**
+
+### Teardown and lifecycle hardening
+
+The Azure resources used for P8 were temporary and were destroyed after evidence collection.
+
+The initial teardown exposed an Event Hubs Capture dependency-ordering edge case. Capture storage had been removed before an Event Hub authorization-rule deletion, causing Azure to reject the operation while validating the stale Capture Blob destination.
+
+The affected Event Hub was removed and Terraform subsequently reconciled the out-of-band deletion and completed the teardown.
+
+Final verification confirmed:
+
+```text
+TERRAFORM_STATE_EMPTY=True
+RESOURCE_GROUP_EXISTS=false
+```
+
+The Terraform dependency graph was subsequently hardened so Event Hubs resources are destroyed before their Capture storage destination.
+
+No live P8 Azure infrastructure remained after evidence collection.
+
+### Security boundary
+
+P8 uses Azure Container Registry administrative credentials and a Cosmos DB connection string through Container Apps secret configuration as development simplifications.
+
+These are not presented as the target production security model.
+
+P11 will address managed identity, `AcrPull` role-based access, improved secret handling, and the private-network reference architecture.
+
+### P8 documentation
+
+- [ADR-011: Container Apps API/UI](docs/adr/ADR-011-container-apps-api-ui.md)
+- [P8 Container Apps deployment evidence](docs/evidence/p8-container-apps-deployment.md)
+
+Next: **P9 - OpenTelemetry, Azure Monitor, processing metrics, consumer lag/backlog, latency, errors, and checkpoint observability.**
