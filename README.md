@@ -8,7 +8,7 @@ The project is designed to demonstrate streaming, partitioning, consumer scaling
 
 ## Project Status
 
-**Current phase: P5 - Rule engine and maintenance alerts complete**
+**Current phase: P6 - DLQ and re-drive tooling complete**
 
 | Phase | Description                                     | Status      |
 | ----- | ----------------------------------------------- | ----------- |
@@ -18,7 +18,7 @@ The project is designed to demonstrate streaming, partitioning, consumer scaling
 | P3    | C# telemetry consumer and checkpointing         | Complete    |
 | P4    | Machine state store and APIs                    | Complete    |
 | P5    | Rule engine and maintenance alerts              | Complete    |
-| P6    | DLQ and re-drive tooling                        | Not started |
+| P6    | DLQ and re-drive tooling                        | Complete    |
 | P7    | Cold storage and replay pipeline                | Not started |
 | P8    | Container Apps API/UI deployment                | Not started |
 | P9    | Observability and lag dashboards                | Not started |
@@ -174,6 +174,44 @@ The implementation retains at-least-once semantics. Cosmos DB state advancement 
 P5 does not claim the complete DLQ/re-drive workflow. That remains P6.
 
 Detailed evidence is documented in [`docs/evidence/p5-rule-command-flow.md`](docs/evidence/p5-rule-command-flow.md).
+## P6 - Service Bus DLQ and Re-drive
+
+P6 adds operational tooling for inspecting and recovering maintenance-command poison messages from the Azure Service Bus dead-letter queue.
+
+Implemented capabilities:
+
+- `.NET` maintenance operations CLI;
+- non-destructive DLQ inspection;
+- controlled poison-message generation for reproducible validation;
+- targeted message re-drive;
+- deterministic replacement broker `MessageId`;
+- preservation of original business identity and re-drive metadata;
+- send-before-complete recovery semantics;
+- dedicated Service Bus operations authorization with Send and Listen rights and no Manage right;
+- automated re-drive message tests;
+- operator DLQ/re-drive runbook.
+
+The re-drive broker identity follows:
+
+`<originalMessageId>:redrive:<deadLetterSequenceNumber>`
+
+This allows an intentional re-drive to use a new broker identity while preserving the original business identity. It also works with the existing Service Bus duplicate-detection window to suppress a repeated recovery send during that window.
+
+Live Azure validation exercised the complete poison-message recovery path:
+
+`main queue -> DLQ -> inspect -> re-drive -> main queue -> consume`
+
+The controlled poison message was dead-lettered with `InvalidMaintenanceCommand`, inspected through the CLI, re-driven as `p6-poison-001:redrive:1`, received with `redrive=True`, and completed successfully.
+
+The final queue state contained zero active messages and zero dead-letter messages.
+
+The workflow deliberately sends the replacement before completing the original DLQ message. It is not an atomic distributed transaction and does not claim exactly-once delivery.
+
+The short-lived Azure resources used for P6 validation were destroyed after evidence collection, and runtime Service Bus credentials were cleared.
+
+Detailed evidence is documented in [`docs/evidence/p6-dlq-redrive.md`](docs/evidence/p6-dlq-redrive.md).
+
+The operational procedure is documented in [`docs/runbooks/service-bus-dlq-redrive.md`](docs/runbooks/service-bus-dlq-redrive.md).
 ## Planned Architecture
 
 ```text

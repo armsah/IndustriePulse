@@ -10,10 +10,10 @@ The goal is to preserve not only **what** was selected, but also **why** it was 
 
 Each ADR uses one of the following statuses:
 
-* **Proposed** — under evaluation and not yet accepted.
-* **Accepted** — current architectural decision.
-* **Superseded** — replaced by a newer ADR.
-* **Deprecated** — retained for historical context but should no longer guide implementation.
+* **Proposed** â€” under evaluation and not yet accepted.
+* **Accepted** â€” current architectural decision.
+* **Superseded** â€” replaced by a newer ADR.
+* **Deprecated** â€” retained for historical context but should no longer guide implementation.
 
 ## ADR Format
 
@@ -123,3 +123,4 @@ ADR-006 has been accepted and selects **Azure Cosmos DB for NoSQL** for the curr
 P4 implements this decision through a repository abstraction, Cosmos-backed projection from the telemetry consumer, and an ASP.NET Core current-state API.
 
 ADR-007 has been accepted for P5. Maintenance commands use deterministic identities derived from `eventId` and `ruleId`, rules run only when machine state advances, and the Service Bus queue uses duplicate detection. The decision explicitly retains at-least-once semantics and documents the non-atomic Cosmos DB-to-Service Bus consistency gap for future outbox hardening.
+ADR-009 has been accepted for P6. Maintenance-command failures can be inspected in the native Service Bus dead-letter subqueue and selectively re-driven after operator review. Re-drive preserves the original business identity while using a deterministic replacement broker `MessageId` so the intentional recovery is not suppressed by the queue duplicate-detection window. The operation sends the replacement before completing the DLQ message and does not claim atomic or exactly-once delivery.
