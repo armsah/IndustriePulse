@@ -10,9 +10,10 @@ locals {
     8
   )
 
-  resource_group_name     = "rg-${local.project}-${var.environment}-weu"
-  namespace_name          = "ehns-${local.project}-${var.environment}-${local.subscription_suffix}"
-  checkpoint_storage_name = "stip${var.environment}${local.subscription_suffix}"
+  resource_group_name       = "rg-${local.project}-${var.environment}-weu"
+  namespace_name            = "ehns-${local.project}-${var.environment}-${local.subscription_suffix}"
+  checkpoint_storage_name   = "stip${var.environment}${local.subscription_suffix}"
+  servicebus_namespace_name = "sbns-${local.project}-${var.environment}-${local.subscription_suffix}"
 
   common_tags = {
     project     = "IndustriePulse"
@@ -132,4 +133,52 @@ resource "azurerm_cosmosdb_sql_container" "machine_state" {
 
   partition_key_paths   = ["/machineId"]
   partition_key_version = 2
+}
+
+resource "azurerm_servicebus_namespace" "maintenance" {
+  name                = local.servicebus_namespace_name
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+
+  sku                           = "Standard"
+  minimum_tls_version           = "1.2"
+  public_network_access_enabled = true
+  local_auth_enabled            = true
+
+  tags = merge(local.common_tags, {
+    phase = "P5"
+    role  = "maintenance-messaging"
+  })
+}
+
+resource "azurerm_servicebus_queue" "maintenance_commands" {
+  name         = "maintenance-commands"
+  namespace_id = azurerm_servicebus_namespace.maintenance.id
+
+  max_delivery_count  = 10
+  lock_duration       = "PT1M"
+  default_message_ttl = "P1D"
+
+  requires_duplicate_detection            = true
+  duplicate_detection_history_time_window = "PT10M"
+
+  dead_lettering_on_message_expiration = true
+}
+
+resource "azurerm_servicebus_queue_authorization_rule" "maintenance_sender" {
+  name     = "maintenance-sender"
+  queue_id = azurerm_servicebus_queue.maintenance_commands.id
+
+  send   = true
+  listen = false
+  manage = false
+}
+
+resource "azurerm_servicebus_queue_authorization_rule" "maintenance_receiver" {
+  name     = "maintenance-receiver"
+  queue_id = azurerm_servicebus_queue.maintenance_commands.id
+
+  send   = false
+  listen = true
+  manage = false
 }

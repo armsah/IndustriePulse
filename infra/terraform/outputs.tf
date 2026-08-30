@@ -57,3 +57,23 @@ output "cosmos_machine_state_container_name" {
   description = "Cosmos DB container storing current state by machineId."
   value       = azurerm_cosmosdb_sql_container.machine_state.name
 }
+
+output "servicebus_namespace_name" {
+  description = "Service Bus namespace used for P5 maintenance messaging."
+  value       = azurerm_servicebus_namespace.maintenance.name
+}
+
+output "maintenance_commands_queue_name" {
+  description = "Service Bus queue receiving maintenance commands."
+  value       = azurerm_servicebus_queue.maintenance_commands.name
+}
+
+output "maintenance_sender_authorization_rule_name" {
+  description = "Send-only authorization rule used by the telemetry processor."
+  value       = azurerm_servicebus_queue_authorization_rule.maintenance_sender.name
+}
+
+output "maintenance_receiver_authorization_rule_name" {
+  description = "Listen-only authorization rule used for P5 maintenance command validation."
+  value       = azurerm_servicebus_queue_authorization_rule.maintenance_receiver.name
+}
