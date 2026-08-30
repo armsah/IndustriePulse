@@ -8,7 +8,7 @@ The project is designed to demonstrate streaming, partitioning, consumer scaling
 
 ## Project Status
 
-**Current phase: P4 - Machine state store and APIs complete**
+**Current phase: P5 - Rule engine and maintenance alerts complete**
 
 | Phase | Description                                     | Status      |
 | ----- | ----------------------------------------------- | ----------- |
@@ -17,7 +17,7 @@ The project is designed to demonstrate streaming, partitioning, consumer scaling
 | P2    | Azure Event Hubs infrastructure                 | Complete    |
 | P3    | C# telemetry consumer and checkpointing         | Complete    |
 | P4    | Machine state store and APIs                    | Complete    |
-| P5    | Rule engine and maintenance alerts              | Not started |
+| P5    | Rule engine and maintenance alerts              | Complete    |
 | P6    | DLQ and re-drive tooling                        | Not started |
 | P7    | Cold storage and replay pipeline                | Not started |
 | P8    | Container Apps API/UI deployment                | Not started |
@@ -145,6 +145,35 @@ The short-lived Azure resources used for validation were destroyed after testing
 
 Detailed evidence is documented in [`docs/evidence/p4-machine-state-api.md`](docs/evidence/p4-machine-state-api.md).
 
+## P5 - Rule Engine and Maintenance Alerts
+
+P5 adds deterministic maintenance-rule evaluation and Azure Service Bus command delivery to the telemetry processing pipeline.
+
+Implemented capabilities:
+
+- `OVERHEAT` rule at `temperatureC >= 85.0`;
+- `HIGH_VIBRATION` rule at `vibrationMmS >= 7.0`;
+- versioned `maintenance-command.v1` JSON contract;
+- deterministic command IDs derived from `eventId` and `ruleId`;
+- Azure Service Bus Standard `maintenance-commands` queue;
+- 10-minute Service Bus duplicate-detection window;
+- send-only consumer authorization and listen-only validation authorization;
+- rule evaluation only when the machine-state projection advances;
+- command publication before Event Hubs checkpoint advancement;
+- stale/duplicate telemetry suppression;
+- automated rule, serialization, consumer, and Terraform tests.
+
+Live Azure validation exercised:
+
+`Event Hubs -> C# consumer -> Cosmos DB -> rule engine -> Service Bus`
+
+A deterministic 96 C telemetry event produced and validated an `OVERHEAT` maintenance command with `Critical` severity and `InspectCoolingSystem` action.
+
+The implementation retains at-least-once semantics. Cosmos DB state advancement and Service Bus publication are not atomic; the resulting consistency gap is documented in ADR-007 as a candidate for future transactional-outbox hardening.
+
+P5 does not claim the complete DLQ/re-drive workflow. That remains P6.
+
+Detailed evidence is documented in [`docs/evidence/p5-rule-command-flow.md`](docs/evidence/p5-rule-command-flow.md).
 ## Planned Architecture
 
 ```text

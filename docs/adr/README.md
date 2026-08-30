@@ -88,7 +88,7 @@ The following ADRs are expected as the project evolves.
 | ADR-004 | Consumer hosting model                                   | P3             | Planned  |
 | ADR-005 | Checkpointing strategy                                   | P3             | Planned  |
 | ADR-006 | Machine current-state store: PostgreSQL vs Cosmos DB     | P4             | Planned  |
-| ADR-007 | Idempotency and duplicate-processing strategy            | P4/P5          | Planned  |
+| ADR-007 | Idempotency and duplicate-processing strategy            | P4/P5          | Accepted |
 | ADR-008 | Hot telemetry store                                      | P4/P7          | Planned  |
 | ADR-009 | Maintenance command retry and DLQ policy                 | P5/P6          | Planned  |
 | ADR-010 | Replay isolation strategy                                | P7             | Planned  |
@@ -121,3 +121,5 @@ ADR-005 has been accepted and defines **processing-before-checkpoint semantics**
 ADR-006 has been accepted and selects **Azure Cosmos DB for NoSQL** for the current machine-state projection. Each machine is represented by one document using `machineId` as both the document identity and `/machineId` partition key. State advances only when an event has a newer `sequence`, preventing duplicate, late, or out-of-order telemetry from regressing current state.
 
 P4 implements this decision through a repository abstraction, Cosmos-backed projection from the telemetry consumer, and an ASP.NET Core current-state API.
+
+ADR-007 has been accepted for P5. Maintenance commands use deterministic identities derived from `eventId` and `ruleId`, rules run only when machine state advances, and the Service Bus queue uses duplicate detection. The decision explicitly retains at-least-once semantics and documents the non-atomic Cosmos DB-to-Service Bus consistency gap for future outbox hardening.
