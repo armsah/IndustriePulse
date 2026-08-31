@@ -56,6 +56,16 @@ builder.Services
         "EventHub:CheckpointContainerName is required.")
     .ValidateOnStart();
 
+builder.Services
+    .AddOptions<BenchmarkOptions>()
+    .Bind(builder.Configuration.GetSection(BenchmarkOptions.SectionName))
+    .Validate(
+        options => options.ProcessingDelayMs >= 0,
+        "Benchmark:ProcessingDelayMs must be greater than or equal to zero.")
+    .ValidateOnStart();
+
+builder.Services.AddSingleton<BenchmarkProcessingDelay>();
+
 builder.Services.AddSingleton<IMachineStateRepository>(sp =>
 {
     IConfiguration configuration =

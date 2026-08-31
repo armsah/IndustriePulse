@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import argparse
 import os
@@ -19,6 +19,17 @@ from industriepulse_simulator.sinks import (
 
 def positive_int(value: str) -> int:
     parsed = int(value)
+
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError(
+            "value must be greater than zero"
+        )
+
+    return parsed
+
+
+def positive_float(value: str) -> float:
+    parsed = float(value)
 
     if parsed <= 0:
         raise argparse.ArgumentTypeError(
@@ -49,6 +60,15 @@ def build_parser() -> argparse.ArgumentParser:
         type=positive_int,
         default=1,
         help="number of telemetry cycles (default: 1)",
+    )
+
+    parser.add_argument(
+        "--target-events-per-second",
+        type=positive_float,
+        help=(
+            "maximum emitted records per second; "
+            "omit to run as fast as the sink allows"
+        ),
     )
 
     parser.add_argument(
@@ -210,6 +230,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         generator=generator,
         sink=sink,
         interval_seconds=config.interval_seconds,
+        target_events_per_second=(
+            args.target_events_per_second
+        ),
     )
 
     stats = runner.run_cycles(
@@ -228,6 +251,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"Duplicates: {stats.duplicate_records:,} | "
             f"Late: {stats.late_events:,} | "
             f"Malformed: {stats.malformed_records:,} | "
+            f"Elapsed: {stats.elapsed_seconds:.3f}s | "
+            f"Throughput: "
+            f"{stats.emitted_events_per_second:,.2f} events/s | "
             f"Output: {args.output}"
         )
 

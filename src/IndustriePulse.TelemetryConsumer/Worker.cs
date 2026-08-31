@@ -14,6 +14,7 @@ public sealed class Worker(
     TelemetryEventHandler handler,
     PartitionCheckpointGate checkpointGate,
     ConsumerMetrics metrics,
+    BenchmarkProcessingDelay benchmarkDelay,
     ILogger<Worker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -54,6 +55,9 @@ public sealed class Worker(
 
         try
         {
+            await benchmarkDelay.ApplyAsync(
+                args.CancellationToken);
+
             await handler.ProcessAsync(
                 args.Data.EventBody.ToMemory(),
                 async cancellationToken =>

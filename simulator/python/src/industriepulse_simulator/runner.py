@@ -1,8 +1,9 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from time import perf_counter, sleep
 
 from industriepulse_simulator.generator import TelemetryGenerator
 from industriepulse_simulator.models import Machine
@@ -18,6 +19,8 @@ class RunStats:
     duplicate_records: int
     late_events: int
     malformed_records: int
+    elapsed_seconds: float
+    emitted_events_per_second: float
 
 
 class SimulatorRunner:
@@ -27,16 +30,26 @@ class SimulatorRunner:
         generator: TelemetryGenerator,
         sink: TelemetrySink,
         interval_seconds: float,
+        target_events_per_second: float | None = None,
     ) -> None:
         if interval_seconds <= 0:
             raise ValueError(
                 "interval_seconds must be greater than zero"
             )
 
+        if (
+            target_events_per_second is not None
+            and target_events_per_second <= 0
+        ):
+            raise ValueError(
+                "target_events_per_second must be greater than zero"
+            )
+
         self._machines = machines
         self._generator = generator
         self._sink = sink
         self._interval_seconds = interval_seconds
+        self._target_events_per_second = target_events_per_second
 
     def run_cycles(
         self,
@@ -47,6 +60,8 @@ class SimulatorRunner:
             raise ValueError(
                 "cycles must be greater than zero"
             )
+
+        started_at = perf_counter()
 
         logical_events = 0
         emitted_records = 0
@@ -119,17 +134,33 @@ class SimulatorRunner:
                         partition_key=machine.machine_id,
                     )
                     emitted_records += 1
+                    self._pace(
+                        started_at,
+                        emitted_records,
+                    )
 
                     if self._generator.should_duplicate(
                         machine.machine_id,
                         sequence,
                     ):
                         self._sink.write(
-                        payload,
-                        partition_key=machine.machine_id,
-                    )
+                            payload,
+                            partition_key=machine.machine_id,
+                        )
                         emitted_records += 1
                         duplicate_records += 1
+                        self._pace(
+                            started_at,
+                            emitted_records,
+                        )
+
+            elapsed_seconds = perf_counter() - started_at
+
+            emitted_events_per_second = (
+                emitted_records / elapsed_seconds
+                if elapsed_seconds > 0
+                else 0.0
+            )
 
             return RunStats(
                 logical_events=logical_events,
@@ -138,6 +169,33 @@ class SimulatorRunner:
                 duplicate_records=duplicate_records,
                 late_events=late_events,
                 malformed_records=malformed_records,
+                elapsed_seconds=elapsed_seconds,
+                emitted_events_per_second=(
+                    emitted_events_per_second
+                ),
             )
         finally:
             self._sink.close()
+
+    def _pace(
+        self,
+        started_at: float,
+        emitted_records: int,
+    ) -> None:
+        if self._target_events_per_second is None:
+            return
+
+        target_elapsed_seconds = (
+            emitted_records
+            / self._target_events_per_second
+        )
+
+        actual_elapsed_seconds = perf_counter() - started_at
+
+        remaining_seconds = (
+            target_elapsed_seconds
+            - actual_elapsed_seconds
+        )
+
+        if remaining_seconds > 0:
+            sleep(remaining_seconds)
