@@ -8,9 +8,9 @@ The project is designed to demonstrate streaming, partitioning, consumer scaling
 
 ## Project Status
 
-**Current phase: P10 - Throughput and backpressure benchmarking complete**
+**Current phase: P11 - Security and private-reference design complete**
 
-**Next phase: P11 - Security and private-reference design**
+**Next phase: P12 - Portfolio demo and documentation**
 
 | Phase | Description                                     | Status      |
 | ----- | ----------------------------------------------- | ----------- |
@@ -25,7 +25,7 @@ The project is designed to demonstrate streaming, partitioning, consumer scaling
 | P8    | Container Apps API/UI deployment                | Complete    |
 | P9    | Observability and lag dashboards                | Complete    |
 | P10   | Throughput and backpressure benchmarks          | Complete    |
-| P11   | Security and private-reference design           | Not started |
+| P11   | Security and private-reference design           | Complete    |
 | P12   | Portfolio demo and documentation                | Not started |
 
 ## P0 Baseline
@@ -671,7 +671,7 @@ This workload is a functional observability proof rather than a production-throu
 - [ADR-012: Azure Monitor observability and processing lag](docs/adr/ADR-012-observability-and-processing-lag.md)
 - [P9 observability and processing lag evidence](docs/evidence/p9-observability-lag.md)
 
-Next: **P11 - Security hardening and private-reference architecture.**
+Next: **P12 - Portfolio demo and documentation.**
 
 ## P10 - Throughput and Backpressure Benchmarking
 
@@ -746,4 +746,68 @@ The benchmark establishes several important boundaries:
 - [ADR-013: Throughput and backpressure benchmark strategy](docs/adr/ADR-013-throughput-and-backpressure.md)
 - [P10 throughput and backpressure benchmark evidence](docs/evidence/p10-throughput-backpressure.md)
 
-Next: **P11 - Security hardening and private-reference architecture.**
+Next: **P12 - Portfolio demo and documentation.**
+
+## P11 - Security and Private-Reference Design
+
+P11 defines the production-reference security boundary for IndustriePulse while preserving the inexpensive development deployment used by earlier phases.
+
+### Development and production-reference separation
+
+The development topology continues to support short-lived demonstrations using public Azure endpoints and scoped connection strings or SAS credentials.
+
+A new `security_reference_enabled` Terraform switch defaults to `false`. When explicitly enabled, Terraform models the stronger production-reference topology without changing normal development cost.
+
+### Identity and least privilege
+
+The reference architecture uses separate managed identities for the API and telemetry consumer.
+
+The API identity receives:
+
+- `AcrPull` for container image retrieval;
+- Cosmos DB Built-in Data Reader for machine-state queries.
+
+The telemetry-consumer identity receives:
+
+- Azure Event Hubs Data Receiver;
+- Storage Blob Data Contributor for checkpoints;
+- Cosmos DB Built-in Data Contributor for current-state updates;
+- Azure Service Bus Data Sender for maintenance commands.
+
+This avoids sharing broad application credentials across workloads.
+
+### Private-reference network
+
+The P11 Terraform reference models:
+
+- a dedicated VNet;
+- a delegated Container Apps subnet;
+- a separate private-endpoint subnet;
+- Event Hubs Private Link;
+- Service Bus Private Link;
+- Cosmos DB Private Link;
+- checkpoint Blob Storage Private Link;
+- telemetry capture Blob Storage Private Link;
+- corresponding private DNS zones and VNet links.
+
+Public network access and local or key authentication should be disabled only after workload identity migration and private-path validation. A private endpoint alone is not treated as sufficient isolation.
+
+### ACR tradeoff
+
+The development registry remains optimized for low cost. Managed identity plus `AcrPull` removes the need for registry administrative credentials in the production identity model, while stricter private registry networking remains a production option.
+
+### Threat model and access paths
+
+The P11 threat model covers spoofing, tampering, credential disclosure, maintenance-command abuse, checkpoint manipulation, denial of service, repudiation, and privilege escalation.
+
+Production-reference access paths are documented for telemetry ingestion, the consumer, Blob checkpoints, Cosmos DB, Service Bus, ACR, replay, DLQ/re-drive operations, Private Link, private DNS, and Azure control-plane administration.
+
+**P11 exit criterion: access paths documented - PASS.**
+
+### P11 documentation
+
+- [ADR-014: Entra identity and private connectivity reference architecture](docs/adr/ADR-014-security-and-private-connectivity.md)
+- [P11 threat model](docs/security/threat-model.md)
+- [P11 security access paths](docs/security/access-paths.md)
+
+Next: **P12 - Portfolio demo and documentation.**
