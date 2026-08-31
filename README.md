@@ -8,9 +8,9 @@ The project is designed to demonstrate streaming, partitioning, consumer scaling
 
 ## Project Status
 
-**Current phase: P11 - Security and private-reference design complete**
+**Current phase: P12 - Portfolio demo and documentation complete**
 
-**Next phase: P12 - Portfolio demo and documentation**
+**All planned phases P0-P12 are complete.**
 
 | Phase | Description                                     | Status      |
 | ----- | ----------------------------------------------- | ----------- |
@@ -26,7 +26,7 @@ The project is designed to demonstrate streaming, partitioning, consumer scaling
 | P9    | Observability and lag dashboards                | Complete    |
 | P10   | Throughput and backpressure benchmarks          | Complete    |
 | P11   | Security and private-reference design           | Complete    |
-| P12   | Portfolio demo and documentation                | Not started |
+| P12   | Portfolio demo and documentation                | Complete    |
 
 ## P0 Baseline
 
@@ -671,7 +671,7 @@ This workload is a functional observability proof rather than a production-throu
 - [ADR-012: Azure Monitor observability and processing lag](docs/adr/ADR-012-observability-and-processing-lag.md)
 - [P9 observability and processing lag evidence](docs/evidence/p9-observability-lag.md)
 
-Next: **P12 - Portfolio demo and documentation.**
+
 
 ## P10 - Throughput and Backpressure Benchmarking
 
@@ -746,7 +746,7 @@ The benchmark establishes several important boundaries:
 - [ADR-013: Throughput and backpressure benchmark strategy](docs/adr/ADR-013-throughput-and-backpressure.md)
 - [P10 throughput and backpressure benchmark evidence](docs/evidence/p10-throughput-backpressure.md)
 
-Next: **P12 - Portfolio demo and documentation.**
+
 
 ## P11 - Security and Private-Reference Design
 
@@ -810,4 +810,29 @@ Production-reference access paths are documented for telemetry ingestion, the co
 - [P11 threat model](docs/security/threat-model.md)
 - [P11 security access paths](docs/security/access-paths.md)
 
-Next: **P12 - Portfolio demo and documentation.**
+
+
+## P12 - Portfolio Demo and Documentation
+
+P12 converts the completed engineering project into a concise, reviewer-friendly portfolio artifact.
+
+The phase adds:
+
+- a system-level architecture overview;
+- a 10-15 minute technical demo walkthrough;
+- a consolidated evidence index;
+- explicit separation of measured results, sizing targets, and reference architecture claims;
+- a reviewer-oriented README landing section;
+- a final repository validation path that does not require continuously running Azure resources.
+
+The demo deliberately uses captured evidence for expensive or short-lived Azure scenarios rather than requiring cloud infrastructure to remain provisioned solely for portfolio presentation.
+
+### P12 documentation
+
+- [Architecture overview](docs/architecture.md)
+- [Portfolio demo script](docs/demo/demo-script.md)
+- [Evidence index](docs/demo/evidence-index.md)
+
+**P12 exit criterion: portfolio-ready - PASS.**
+
+**Project status: all planned phases P0-P12 complete.**
