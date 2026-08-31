@@ -8,9 +8,9 @@ The project is designed to demonstrate streaming, partitioning, consumer scaling
 
 ## Project Status
 
-**Current phase: P9 - Observability and processing lag complete**
+**Current phase: P10 - Throughput and backpressure benchmarking complete**
 
-**Next phase: P10 - Throughput and backpressure benchmarks**
+**Next phase: P11 - Security and private-reference design**
 
 | Phase | Description                                     | Status      |
 | ----- | ----------------------------------------------- | ----------- |
@@ -24,7 +24,7 @@ The project is designed to demonstrate streaming, partitioning, consumer scaling
 | P7    | Capture/cold storage + replay pipeline          | Complete    |
 | P8    | Container Apps API/UI deployment                | Complete    |
 | P9    | Observability and lag dashboards                | Complete    |
-| P10   | Throughput and backpressure benchmarks          | Not started |
+| P10   | Throughput and backpressure benchmarks          | Complete    |
 | P11   | Security and private-reference design           | Not started |
 | P12   | Portfolio demo and documentation                | Not started |
 
@@ -671,4 +671,79 @@ This workload is a functional observability proof rather than a production-throu
 - [ADR-012: Azure Monitor observability and processing lag](docs/adr/ADR-012-observability-and-processing-lag.md)
 - [P9 observability and processing lag evidence](docs/evidence/p9-observability-lag.md)
 
-Next: **P10 - Throughput, backpressure, downstream slowdown, lag growth, and recovery benchmarking.**
+Next: **P11 - Security hardening and private-reference architecture.**
+
+## P10 - Throughput and Backpressure Benchmarking
+
+P10 exercises producer throughput, controlled downstream slowdown, Event Hubs backlog growth, and recovery using explicit benchmark controls.
+
+### Benchmark controls
+
+The Python simulator now supports an optional target event rate and reports the actual achieved throughput instead of assuming the requested rate was reached.
+
+The telemetry consumer supports an optional Benchmark:ProcessingDelayMs setting. The setting defaults to zero and can inject a cancellable per-event processing delay for controlled backpressure experiments.
+
+### Executed benchmark
+
+The Azure benchmark used:
+
+- Azure Event Hubs Standard;
+- 1 throughput unit;
+- 8 telemetry partitions;
+- auto-inflate disabled;
+- the existing 	elemetry-processor consumer group;
+- Blob-backed EventProcessorClient checkpoints;
+- Cosmos DB state updates and rule evaluation in the consumer path;
+- Azure Monitor metrics for processing lag and event age.
+
+A local pacing validation targeted 100 events/second and emitted 200 events in 2.004 seconds, achieving 99.81 events/second.
+
+The Azure producer ceiling probe requested 1,000 events/second but emitted 500 events in 33.379 seconds, achieving only 14.98 events/second. The current Python Event Hubs sink sends one event synchronously per send operation, so the publisher became the limiting component before Event Hubs capacity was approached.
+
+This result is intentionally not presented as proof of either 1,000 events/second executed throughput or the Event Hubs service ceiling.
+
+### Controlled backpressure
+
+With Benchmark:ProcessingDelayMs=1000, the producer emitted 3,000 events in 176.611 seconds at 16.99 events/second while the delayed consumer processed approximately 366-416 events/minute, or about 6.1-6.9 events/second.
+
+Because the producer arrival rate exceeded the consumer service rate, measurable backlog accumulated in Event Hubs:
+
+- maximum captured processing lag reached 99 events on every partition;
+- average lag by partition was approximately 39-49 events;
+- maximum event age reached approximately 218 seconds.
+
+### Recovery
+
+After restoring Benchmark:ProcessingDelayMs=0, a fresh 80-event marker batch was processed across all eight partitions.
+
+Azure Monitor showed:
+
+- minimum lag of 0 on every partition;
+- maximum lag of only 0-4 events;
+- maximum marker event age of approximately 1.71 seconds.
+
+This demonstrates that the accumulated backlog drained and normal low-lag processing resumed.
+
+An exact uninterrupted recovery duration is not claimed because the first recovery background launcher incorrectly handled a DLL path containing spaces. The application itself was healthy, and the corrected launcher successfully completed the recovery proof.
+
+### Limits and tradeoffs
+
+The benchmark establishes several important boundaries:
+
+- the current synchronous Python publisher is not suitable for measuring the Event Hubs service throughput ceiling;
+- a future capacity test should use batching, asynchronous publishing, or concurrent producers;
+- eight Event Hubs partitions bound useful partition-level consumer parallelism for the current topology;
+- downstream processing capacity below ingress produces measurable lag and event-age growth;
+- Cosmos DB writes, rules, checkpoints, and downstream dependencies contribute to consumer service time;
+- auto-inflate remains disabled for benchmark repeatability and low development cost;
+- the executed benchmark is an engineering demonstration rather than production capacity certification;
+- the 1,000 events/second workload remains a reference sizing target rather than an executed throughput claim.
+
+**P10 exit criterion: throughput/backpressure benchmark executed and limits/tradeoffs documented - PASS.**
+
+### P10 documentation
+
+- [ADR-013: Throughput and backpressure benchmark strategy](docs/adr/ADR-013-throughput-and-backpressure.md)
+- [P10 throughput and backpressure benchmark evidence](docs/evidence/p10-throughput-backpressure.md)
+
+Next: **P11 - Security hardening and private-reference architecture.**
