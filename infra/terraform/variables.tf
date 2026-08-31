@@ -58,3 +58,9 @@ variable "api_image_tag" {
     error_message = "api_image_tag must not be empty."
   }
 }
+
+variable "security_reference_enabled" {
+  description = "Enable the P11 production-reference private networking and managed identity topology. Disabled by default to preserve low-cost development deployments."
+  type        = bool
+  default     = false
+}

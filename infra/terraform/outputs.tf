@@ -151,3 +151,22 @@ output "observability_workbook_id" {
   description = "P9 Azure Monitor Workbook resource ID."
   value       = azurerm_application_insights_workbook.consumer_observability.id
 }
+output "security_reference_enabled" {
+  description = "Whether the P11 production-reference security topology is enabled."
+  value       = var.security_reference_enabled
+}
+
+output "security_reference_vnet_name" {
+  description = "P11 private-reference VNet name when security reference mode is enabled."
+  value       = try(azurerm_virtual_network.security_reference[0].name, null)
+}
+
+output "api_managed_identity_name" {
+  description = "P11 API managed identity name when security reference mode is enabled."
+  value       = try(azurerm_user_assigned_identity.api_runtime[0].name, null)
+}
+
+output "consumer_managed_identity_name" {
+  description = "P11 telemetry-consumer managed identity name when security reference mode is enabled."
+  value       = try(azurerm_user_assigned_identity.consumer_runtime[0].name, null)
+}
